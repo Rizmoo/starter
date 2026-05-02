@@ -308,48 +308,51 @@ export const DataTable = React.forwardRef((
 
   return (
     <div className="w-full">
-      <div className="flex items-center py-4 gap-2">
-        <div className="relative flex-1">
+      <div className="flex w-full flex-wrap items-center gap-2 py-4">
+        <div className="order-1 w-full sm:order-none sm:w-auto sm:flex-1">
           {(onSearch || (searchKey && columnExists)) && (
-            <>
+            <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={searchPlaceholder || `Search ${searchKey || 'data'}...`}
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px] bg-background"
+                className="h-9 w-full bg-background pl-8 sm:max-w-[300px]"
               />
-            </>
+            </div>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={exportToPdf}>
-          <Download className="mr-2 h-4 w-4" /> PDF
-        </Button>
-        <Button variant="outline" size="sm" onClick={exportToExcel}>
-          <Download className="mr-2 h-4 w-4" /> Excel
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="ml-auto">
-              Columns <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  className="capitalize"
-                  checked={column.getIsVisible()}
-                  onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                >
-                  {column.id}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+
+        <div className="order-2 flex w-full flex-wrap items-center gap-2 sm:order-none sm:w-auto sm:ml-auto">
+          <Button variant="outline" size="sm" onClick={exportToPdf} className="h-9">
+            <Download className="mr-2 h-4 w-4" /> PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToExcel} className="h-9">
+            <Download className="mr-2 h-4 w-4" /> Excel
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9">
+                Columns <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {table
+                .getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => (
+                  <DropdownMenuCheckboxItem
+                    key={column.id}
+                    className="capitalize"
+                    checked={column.getIsVisible()}
+                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                  >
+                    {column.id}
+                  </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="rounded-md border bg-card hidden md:block overflow-x-auto">
@@ -402,12 +405,12 @@ export const DataTable = React.forwardRef((
       />
 
       {/* Pagination — works for both client-side and server-side */}
-      <div className="flex items-center justify-between py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
+      <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm text-muted-foreground">
           Page {currentPage} of {totalPages}. Total {totalRows} rows.
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-muted-foreground">Show:</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="hidden text-sm text-muted-foreground sm:inline">Show:</span>
           <Select
             value={String(isServerPaginated ? pageLength : localPageSize)}
             onValueChange={(value) => {
@@ -420,14 +423,14 @@ export const DataTable = React.forwardRef((
               }
             }}
           >
-            <SelectTrigger className="w-20 h-8"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
             <SelectContent>
               {pageLengthOptions.map((option) => (
                 <SelectItem key={option} value={String(option)}>{option}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <div className="space-x-2">
+          <div className="ml-auto flex items-center gap-2 sm:ml-0">
             <Button
               variant="outline"
               size="sm"

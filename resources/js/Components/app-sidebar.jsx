@@ -118,7 +118,7 @@ export const navItems = [
           { href: '/settings', label: 'General', icon: Settings },
           { href: '/settings/api-keys', label: 'API Keys', icon: Shield },
           { href: '/settings/company', label: 'Company', icon: Building },
-          { href: '/settings/notifications', label: 'Notifications', icon: Bell },
+          { href: '/notifications', label: 'Notifications', icon: Bell },
         ]
       },
     ]
