@@ -158,12 +158,15 @@ function SidebarNav({ activeModule, setActiveModule }) {
 
 // ─── Main Sidebar Component ─────────────────────────────────────────
 export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = () => {} }) {
-  const { url, props } = usePage();
+  const { url } = usePage();
   const [activeModule, setActiveModule] = useState(() => resolveActiveModule(url));
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
-  const currentUser = props?.auth?.user || null;
-  const currentUserName = currentUser?.name || 'User';
-  const currentUserRole = currentUser?.roles?.[0] || currentUser?.role || 'Admin';
+
+  const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+  const appWords = appName.trim().split(/\s+/).filter(Boolean);
+  const appInitials = appWords.length > 1
+    ? appWords.slice(0, 2).map((word) => word[0]?.toUpperCase() || '').join('')
+    : (appWords[0]?.slice(0, 2).toUpperCase() || 'LA');
 
   const handleModuleClick = (id) => {
     setActiveModule(id);
@@ -210,8 +213,8 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
             <SidebarNav activeModule={activeModule} setActiveModule={handleModuleClick} />
           </div>
           <div className="h-14 flex items-center justify-center border-t border-[#1E222B]">
-            <div className="h-8 w-8 rounded-full bg-[#181C23] flex items-center justify-center text-xs font-bold text-gray-400">
-              N
+            <div className="h-8 w-8 rounded-full bg-[#181C23] flex items-center justify-center text-xs font-bold text-gray-300">
+              {appInitials}
             </div>
           </div>
         </aside>
@@ -289,12 +292,12 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
             {/* Panel Footer */}
             <div className="p-4 border-t border-[#1E222B] bg-[#0D1017]">
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20">
-                  <Building className="h-4 w-4 text-green-500" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20 text-[10px] font-bold text-green-500">
+                  {appInitials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-bold text-white truncate">{currentUserName}</p>
-                  <p className="text-[10px] text-gray-500 truncate">{currentUserRole}</p>
+                  <p className="text-[12px] font-bold text-white truncate">{appName}</p>
+                  <p className="text-[10px] text-gray-500 truncate">Application</p>
                 </div>
               </div>
             </div>
