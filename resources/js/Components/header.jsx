@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { Bell, LogOut, Settings, User, CheckCheck, Info, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { Bell, LogOut, Settings, User, CheckCheck, Info, CheckCircle, AlertTriangle, XCircle, PanelLeft } from 'lucide-react';
 import { useAppContext } from '@/Components/app-provider';
 import axios from 'axios';
 
@@ -31,7 +31,7 @@ const typeIcon = {
   error:   <XCircle className="h-4 w-4 text-red-500" />,
 };
 
-export default function Header() {
+export default function Header({ onToggleMobileMenu }) {
   const { url, props } = usePage();
   const { user, logout } = useAppContext();
   const breadcrumbs = getBreadcrumbs(url);
@@ -53,8 +53,19 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="md:hidden"
+        onClick={onToggleMobileMenu}
+      >
+        <PanelLeft className="h-5 w-5" />
+        <span className="sr-only">Show menu</span>
+      </Button>
+
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <nav className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground">
         {breadcrumbs.map((crumb, i) => (
           <span key={crumb.href} className="flex items-center gap-1.5">
             {i > 0 && <span className="text-muted-foreground/50">/</span>}
