@@ -1,11 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Settings\ApiKeyController;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
@@ -38,6 +39,10 @@ Route::middleware(['auth'])->group(function () {
             'recoveryCodes' => null,
         ]);
     })->name('settings');
+
+    Route::get('/settings/api-keys', [ApiKeyController::class, 'index'])->name('settings.api-keys');
+    Route::post('/settings/api-keys', [ApiKeyController::class, 'store'])->name('settings.api-keys.store');
+    Route::delete('/settings/api-keys/{tokenId}', [ApiKeyController::class, 'destroy'])->name('settings.api-keys.destroy');
 
     // Notifications — specific routes MUST come before wildcard {id} routes
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
