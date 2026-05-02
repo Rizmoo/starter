@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, usePage, router, Head } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
+import { ConfirmDialog } from '@/Components/ui/confirm-dialog';
 import { useToast } from '@/Hooks/use-toast';
 import { AlertTriangle, Copy, KeyRound, Loader2, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 
@@ -22,6 +23,8 @@ function formatDateTime(value) {
 export default function ApiKeysSettingsPage({ tokens = [], plainTextToken = null }) {
   const { toast } = useToast();
   const { flash } = usePage().props;
+  const [tokenToRevoke, setTokenToRevoke] = useState(null);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   const createKeyForm = useForm({
     name: '',
@@ -55,15 +58,19 @@ export default function ApiKeysSettingsPage({ tokens = [], plainTextToken = null
     });
   };
 
-  const handleRevokeApiKey = (token) => {
-    const shouldRevoke = window.confirm(`Revoke API key "${token.name}"? This action cannot be undone.`);
-
-    if (!shouldRevoke) {
+  const handleRevokeApiKey = () => {
+    if (!tokenToRevoke) {
       return;
     }
 
-    router.delete(`/settings/api-keys/${token.id}`, {
+    setIsRevoking(true);
+
+    router.delete(`/settings/api-keys/${tokenToRevoke.id}`, {
       preserveScroll: true,
+      onFinish: () => {
+        setIsRevoking(false);
+        setTokenToRevoke(null);
+      },
     });
   };
 
@@ -179,7 +186,7 @@ export default function ApiKeysSettingsPage({ tokens = [], plainTextToken = null
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleRevokeApiKey(token)}
+                        onClick={() => setTokenToRevoke(token)}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Revoke
@@ -198,6 +205,24 @@ export default function ApiKeysSettingsPage({ tokens = [], plainTextToken = null
             Revoke keys immediately if compromised, and rotate keys used in long-running integrations regularly.
           </CardContent>
         </Card>
+
+        <ConfirmDialog
+          open={Boolean(tokenToRevoke)}
+          onOpenChange={(open) => {
+            if (!open && !isRevoking) {
+              setTokenToRevoke(null);
+            }
+          }}
+          onConfirm={handleRevokeApiKey}
+          title="Revoke API Key"
+          description={tokenToRevoke
+            ? `Revoke API key "${tokenToRevoke.name}"? This action cannot be undone.`
+            : 'Revoke this API key? This action cannot be undone.'}
+          confirmText="Revoke Key"
+          cancelText="Cancel"
+          variant="destructive"
+          loading={isRevoking}
+        />
       </div>
     </DashboardLayout>
   );
