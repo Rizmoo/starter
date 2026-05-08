@@ -7,7 +7,7 @@ import { DataTableColumnHeader } from '@/Components/ui/data-table-column-header'
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import { Button } from '@/Components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/Components/ui/tabs';
-import { MoreHorizontal, Plus, ShieldAlert, UserCheck, UserX, Trash2, KeyRound, Lock, UserMinus } from 'lucide-react';
+import { MoreHorizontal, Plus, ShieldAlert, UserCheck, UserX, Trash2, KeyRound, Lock, UserMinus, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +51,13 @@ export default function UsersIndexPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+
+  const [bulkConfirmState, setBulkConfirmState] = useState({
+    open: false,
+    users: [],
+    loading: false,
+    clearSelection: null,
+  });
 
   const [confirmState, setConfirmState] = useState({
     open: false,
@@ -149,16 +156,29 @@ export default function UsersIndexPage() {
   };
 
   const handleBulkPasswordReset = async (selectedUsers, clearSelection) => {
+    setBulkConfirmState({
+      open: true,
+      users: selectedUsers,
+      loading: false,
+      clearSelection,
+    });
+  };
+
+  const executeBulkPasswordReset = async () => {
+    const { users, clearSelection } = bulkConfirmState;
+    setBulkConfirmState(prev => ({ ...prev, loading: true }));
     setIsBulkSubmitting(true);
+    
     try {
       await window.axios.post('/admin/users/bulk/force-password-change', {
-        user_ids: selectedUsers.map(u => u.id),
+        user_ids: users.map(u => u.id),
       });
       toast({
         title: 'Security policy updated',
-        description: `Forced password reset for ${selectedUsers.length} team members.`,
+        description: `Forced password reset for ${users.length} team members.`,
       });
-      clearSelection();
+      clearSelection?.();
+      setBulkConfirmState(prev => ({ ...prev, open: false }));
     } catch (e) {
       toast({
         variant: 'destructive',
@@ -166,6 +186,7 @@ export default function UsersIndexPage() {
         description: e.response?.data?.message || 'Unable to update security policies.',
       });
     } finally {
+      setBulkConfirmState(prev => ({ ...prev, loading: false }));
       setIsBulkSubmitting(false);
     }
   };
@@ -502,6 +523,17 @@ export default function UsersIndexPage() {
           roles={roles}
           branches={branches}
           onSaved={loadUsers}
+        />
+
+        <ConfirmDialog
+          open={bulkConfirmState.open}
+          onOpenChange={(open) => setBulkConfirmState(prev => ({ ...prev, open }))}
+          onConfirm={executeBulkPasswordReset}
+          loading={bulkConfirmState.loading}
+          title="Force Password Reset"
+          description={`Are you sure you want to force a password reset for ${bulkConfirmState.users.length} team members? They will be prompted to change their password upon next login.`}
+          confirmText="Yes, Force Reset"
+          variant="default"
         />
 
         <ConfirmDialog
