@@ -27,7 +27,8 @@ import {
   Eye,
   Info,
   History,
-  Search
+  Search,
+  DownloadCloud
 } from 'lucide-react';
 import { Label } from '@/Components/ui/label';
 import {
@@ -447,6 +448,9 @@ export default function UserShowPage({ id }) {
                         <CardTitle>Detailed Audit History</CardTitle>
                         <CardDescription>Comprehensive log of all administrative and security events.</CardDescription>
                     </div>
+                    <Button variant="outline" size="sm" onClick={() => window.location.href = route('admin.users.logs.export', user.id)}>
+                        <DownloadCloud className="h-4 w-4 mr-2" /> Export CSV
+                    </Button>
                  </div>
               </CardHeader>
               <CardContent className="p-0">

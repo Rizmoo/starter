@@ -17,6 +17,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
 {
@@ -124,6 +125,47 @@ class UserController extends Controller
             ->paginate((int) $request->integer('per_page', 15));
 
         return response()->json($logs);
+    }
+
+    public function exportLogs(Request $request, User $user): StreamedResponse
+    {
+        $this->ensureUserIsVisibleInScope($request, $user);
+
+        $logs = AuditLog::query()
+            ->with(['actor:id,name', 'branch:id,name'])
+            ->where(function ($query) use ($user) {
+                $query->where('actor_id', $user->id)
+                    ->orWhere(function ($nested) use ($user) {
+                        $nested->where('auditable_id', $user->id)
+                            ->where('auditable_type', User::class);
+                    });
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"user-{$user->id}-activity-log.csv\"",
+        ];
+
+        return response()->stream(function () use ($logs) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['ID', 'Timestamp (UTC)', 'Action', 'Actor', 'Branch', 'IP Address', 'User Agent']);
+
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->id,
+                    $log->created_at->toDateTimeString(),
+                    $log->action,
+                    $log->actor->name ?? 'System',
+                    $log->branch->name ?? 'N/A',
+                    $log->ip_address,
+                    $log->user_agent,
+                ]);
+            }
+
+            fclose($file);
+        }, 200, $headers);
     }
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
