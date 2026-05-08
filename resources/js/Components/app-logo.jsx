@@ -17,19 +17,20 @@ function getAppInitials(name) {
   return words.slice(0, 2).map((word) => word[0]?.toUpperCase() || '').join('');
 }
 
-export function AppLogo({ className, showText = true, href = '/dashboard', logoUrl }) {
-  const initials = getAppInitials(appName);
+export function AppLogo({ className, showText = true, href = '/dashboard', logoUrl, name }) {
+  const currentName = name || appName;
+  const initials = getAppInitials(currentName);
 
   return (
     <Link href={href} className={`flex items-center gap-2 ${className || ''}`}>
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-extrabold text-sm shadow-lg shadow-primary/20 overflow-hidden">
         {logoUrl ? (
-          <img src={logoUrl} alt={appName} className="h-full w-full object-cover" />
+          <img src={logoUrl} alt={currentName} className="h-full w-full object-contain p-1" />
         ) : (
           initials
         )}
       </div>
-      {showText && <span className="text-lg font-bold tracking-tight">{appName}</span>}
+      {showText && <span className="text-lg font-bold tracking-tight">{currentName}</span>}
     </Link>
   );
 }

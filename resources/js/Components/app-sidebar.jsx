@@ -148,7 +148,7 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
       >
         <aside className="w-[4.5rem] h-full border-r border-[#1E222B] bg-[#0B0E14] flex flex-col flex-shrink-0">
           <div className="h-14 flex items-center justify-center border-b border-[#1E222B]">
-            <AppLogo showText={false} logoUrl={company?.logo_url} />
+            <AppLogo showText={false} logoUrl={company?.logo_url} name={company?.name} />
           </div>
           <div className="flex-1 py-4 overflow-y-auto pb-20">
             <SidebarNav activeModule={activeModule} setActiveModule={handleModuleClick} />
@@ -156,7 +156,7 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
           <div className="h-14 flex items-center justify-center border-t border-[#1E222B]">
             <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-extrabold border border-primary/20 overflow-hidden">
               {company?.logo_url ? (
-                <img src={company.logo_url} className="h-full w-full object-cover" alt="Logo" />
+                <img src={company.logo_url} className="h-full w-full object-contain p-1" alt="Logo" />
               ) : (
                 appInitials
               )}
@@ -235,7 +235,7 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground text-[10px] font-black shadow-lg shadow-primary/20 overflow-hidden">
                   {company?.logo_url ? (
-                    <img src={company.logo_url} className="h-full w-full object-cover" alt="Logo" />
+                    <img src={company.logo_url} className="h-full w-full object-contain p-1" alt="Logo" />
                   ) : (
                     appInitials
                   )}

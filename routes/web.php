@@ -71,6 +71,7 @@ Route::middleware(['auth'])->group(function () {
                     'phone' => $company->phone,
                     'address' => $company->address,
                     'logo_path' => $company->logo_path,
+                    'logo_url' => $company->logo_url,
                 ],
             ]);
         })->middleware(['role:Admin'])->name('settings.company');
