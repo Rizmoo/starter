@@ -34,6 +34,7 @@ export default function UsersIndexPage() {
   const [users, setUsers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [roles, setRoles] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [page, setPage] = useState(1);
   const [pageLength, setPageLength] = useState(15);
   const [search, setSearch] = useState('');
@@ -78,19 +79,22 @@ export default function UsersIndexPage() {
   }, [loadUsers]);
 
   useEffect(() => {
-    const loadRoles = async () => {
+    const loadOptions = async () => {
       try {
-        const response = await window.axios.get('/admin/roles', {
-          params: { per_page: 100 },
-        });
+        const [rolesResponse, branchesResponse] = await Promise.all([
+          window.axios.get('/admin/roles', { params: { per_page: 100 } }),
+          window.axios.get('/admin/branches', { params: { per_page: 200, status: 'active' } }),
+        ]);
 
-        setRoles(response.data?.data || []);
+        setRoles(rolesResponse.data?.data || []);
+        setBranches(branchesResponse.data?.data || []);
       } catch {
         setRoles([]);
+        setBranches([]);
       }
     };
 
-    loadRoles();
+    loadOptions();
   }, []);
 
   const columns = useMemo(() => [
@@ -126,6 +130,14 @@ export default function UsersIndexPage() {
       cell: ({ row }) => {
         const roleNames = (row.original.roles || []).map((role) => role.name).join(', ');
         return roleNames || 'None';
+      },
+    },
+    {
+      accessorKey: 'branches',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Branches" />,
+      cell: ({ row }) => {
+        const branchNames = (row.original.branches || []).map((branch) => branch.name).join(', ');
+        return branchNames || 'None';
       },
     },
     {
@@ -276,6 +288,7 @@ export default function UsersIndexPage() {
           mode={dialogMode}
           user={selectedUser}
           roles={roles}
+          branches={branches}
           onSaved={loadUsers}
         />
       </div>

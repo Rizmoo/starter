@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Actions\Branch\ResolveBranchContext;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,9 +37,13 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $branchContext = app(ResolveBranchContext::class)->resolve($request);
 
         $notifications = [];
         $unreadCount = 0;
+        $userBranches = [];
+        $currentBranch = null;
+        $company = null;
 
         if ($user) {
             $unreadCount = $user->unreadNotifications()->count();
@@ -47,32 +52,69 @@ class HandleInertiaRequests extends Middleware
                 ->take(5)
                 ->get()
                 ->map(fn ($n) => [
-                    'id'         => $n->id,
-                    'data'       => $n->data,
-                    'read_at'    => $n->read_at,
+                    'id' => $n->id,
+                    'data' => $n->data,
+                    'read_at' => $n->read_at,
                     'created_at' => $n->created_at->diffForHumans(),
                 ]);
+
+            $companyModel = $user->company;
+            $company = $companyModel ? [
+                'id' => $companyModel->id,
+                'name' => $companyModel->name,
+                'slug' => $companyModel->slug,
+                'logo_path' => $companyModel->logo_path,
+                'email' => $companyModel->email,
+                'phone' => $companyModel->phone,
+                'address' => $companyModel->address,
+                'settings' => $companyModel->settings,
+            ] : null;
+
+            $userBranches = $user->branches()
+                ->select(['branches.id', 'branches.name', 'branches.slug', 'branches.code', 'branches.status'])
+                ->orderBy('branches.name')
+                ->get()
+                ->map(fn ($branch) => [
+                    'id' => $branch->id,
+                    'name' => $branch->name,
+                    'slug' => $branch->slug,
+                    'code' => $branch->code,
+                    'status' => $branch->status,
+                    'is_primary' => (bool) $branch->pivot?->is_primary,
+                ])
+                ->values();
+
+            $currentBranch = $userBranches->firstWhere('id', $branchContext['current_branch_id']);
         }
 
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $user ? [
-                    'id'    => $user->id,
-                    'name'  => $user->name,
+                    'id' => $user->id,
+                    'name' => $user->name,
                     'email' => $user->email,
+                    'company_id' => $user->company_id,
+                    'preferred_branch_id' => $user->preferred_branch_id,
                     'status' => $user->status,
                     'roles' => $user->getRoleNames(),
                     'permissions' => $user->getAllPermissions()->pluck('name'),
                 ] : null,
             ],
+            'company' => $company,
+            'branch_context' => [
+                'mode' => $branchContext['mode'],
+                'current_branch_id' => $branchContext['current_branch_id'],
+                'current_branch' => $currentBranch,
+                'branches' => $userBranches,
+            ],
             'flash' => [
                 'success' => $request->session()->get('success'),
-                'error'   => $request->session()->get('error'),
+                'error' => $request->session()->get('error'),
                 'message' => $request->session()->get('message'),
             ],
             'notifications' => [
-                'items'        => $notifications,
+                'items' => $notifications,
                 'unread_count' => $unreadCount,
             ],
         ];

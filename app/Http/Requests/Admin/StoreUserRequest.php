@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -31,6 +32,15 @@ class StoreUserRequest extends FormRequest
             'role_ids.*' => ['integer', Rule::exists('roles', 'id')],
             'permission_ids' => ['sometimes', 'array'],
             'permission_ids.*' => ['integer', Rule::exists('permissions', 'id')],
+            'branch_ids' => ['required', 'array', 'min:1'],
+            'branch_ids.*' => [
+                'integer',
+                Rule::exists('branches', 'id')->where(function (Builder $builder): void {
+                    if ($this->user()?->company_id !== null) {
+                        $builder->where('company_id', $this->user()?->company_id);
+                    }
+                }),
+            ],
         ];
     }
 }

@@ -5,14 +5,14 @@ import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import { Badge } from '@/Components/ui/badge';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { Bell, LogOut, Settings, User, CheckCheck, Info, CheckCircle, AlertTriangle, XCircle, PanelLeft } from 'lucide-react';
-import { useAppContext } from '@/Components/app-provider';
+import { Bell, LogOut, Settings, User, CheckCheck, Info, CheckCircle, AlertTriangle, XCircle, PanelLeft, Building2 } from 'lucide-react';
 import axios from 'axios';
 
 function getBreadcrumbs(pathname) {
@@ -33,7 +33,10 @@ const typeIcon = {
 
 export default function Header({ onToggleMobileMenu }) {
   const { url, props } = usePage();
-  const { user, logout } = useAppContext();
+  const user = props.auth?.user ?? null;
+  const branches = props.branch_context?.branches ?? [];
+  const currentBranch = props.branch_context?.current_branch ?? null;
+  const branchScopeMode = props.branch_context?.mode ?? 'single';
   const breadcrumbs = getBreadcrumbs(url);
 
   const { items: notifications = [], unread_count: unreadCount = 0 } =
@@ -50,6 +53,21 @@ export default function Header({ onToggleMobileMenu }) {
   const handleMarkAllRead = () => {
     axios.patch('/notifications/read-all').then(() => router.reload({ only: ['notifications'] }));
   };
+
+  const handleBranchSwitch = (mode, branchId = null) => {
+    router.post('/branches/switch', {
+      mode,
+      branch_id: branchId,
+    }, {
+      preserveScroll: true,
+      preserveState: true,
+      only: ['branch_context', 'flash'],
+    });
+  };
+
+  const activeBranchLabel = branchScopeMode === 'all'
+    ? 'All My Branches'
+    : (currentBranch?.name || 'Select Branch');
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
@@ -77,6 +95,36 @@ export default function Header({ onToggleMobileMenu }) {
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Branch switcher */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="max-w-36 truncate">{activeBranchLabel}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64 z-[200]">
+            <DropdownMenuLabel>Branch Context</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem
+              checked={branchScopeMode === 'all'}
+              onCheckedChange={() => handleBranchSwitch('all')}
+            >
+              All My Branches
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
+            {branches.map((branch) => (
+              <DropdownMenuCheckboxItem
+                key={branch.id}
+                checked={branchScopeMode === 'single' && currentBranch?.id === branch.id}
+                onCheckedChange={() => handleBranchSwitch('single', branch.id)}
+              >
+                {branch.name}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Notifications dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
+use App\Models\Company;
 use App\Models\User;
 use App\Notifications\GeneralNotification;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -63,10 +65,39 @@ class DatabaseSeeder extends Seeder
             'audit_logs.view',
         ])->where('guard_name', 'web')->get());
 
+        $company = Company::query()->firstOrCreate(
+            ['slug' => 'default-company'],
+            ['name' => 'Default Company', 'settings' => ['currency' => 'USD']]
+        );
+
+        $branch = Branch::query()->firstOrCreate(
+            ['company_id' => $company->id, 'slug' => 'main-branch'],
+            ['name' => 'Main Branch', 'code' => 'MAIN', 'status' => 'active', 'settings' => []]
+        );
+
         $user = User::firstOrCreate(
             ['email' => 'test@example.com'],
-            ['name' => 'Test User', 'password' => bcrypt('password'), 'status' => 'active']
+            [
+                'company_id' => $company->id,
+                'preferred_branch_id' => $branch->id,
+                'name' => 'Test User',
+                'password' => bcrypt('password'),
+                'force_password_change' => false,
+                'status' => 'active',
+            ]
         );
+
+        if ($user->company_id !== $company->id || $user->preferred_branch_id !== $branch->id || $user->force_password_change) {
+            $user->forceFill([
+                'company_id' => $company->id,
+                'preferred_branch_id' => $branch->id,
+                'force_password_change' => false,
+            ])->save();
+        }
+
+        $user->syncBranches([
+            $branch->id => ['is_primary' => true],
+        ]);
 
         $user->syncRoles([$adminRole->id]);
 
@@ -93,4 +124,3 @@ class DatabaseSeeder extends Seeder
         $user->notifications()->latest()->skip(0)->take(2)->get()->each->markAsRead();
     }
 }
-

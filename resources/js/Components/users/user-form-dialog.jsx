@@ -13,6 +13,7 @@ import {
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Switch } from '@/Components/ui/switch';
 import { Textarea } from '@/Components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
@@ -21,6 +22,7 @@ const INITIAL_FORM = {
   name: '',
   email: '',
   roleId: '',
+  branchIds: [],
   password: '',
   passwordConfirmation: '',
   bio: '',
@@ -46,6 +48,7 @@ export default function UserFormDialog({
   mode,
   user,
   roles,
+  branches,
   onSaved,
 }) {
   const [form, setForm] = useState(INITIAL_FORM);
@@ -66,6 +69,7 @@ export default function UserFormDialog({
         name: user.name || '',
         email: user.email || '',
         roleId: (user.roles && user.roles[0] ? String(user.roles[0].id) : ''),
+        branchIds: (user.branches || []).map((branch) => Number(branch.id)),
         password: '',
         passwordConfirmation: '',
         bio: '',
@@ -100,9 +104,10 @@ export default function UserFormDialog({
         email: form.email,
         status: form.isActive ? 'active' : 'inactive',
         role_ids: form.roleId ? [Number(form.roleId)] : [],
+        branch_ids: form.branchIds,
       };
 
-      if (form.password.trim() !== '') {
+      if (!isEditMode && form.password.trim() !== '') {
         payload.password = form.password;
         payload.password_confirmation = form.passwordConfirmation;
       }
@@ -224,45 +229,92 @@ export default function UserFormDialog({
               </Select>
               {selectedRole ? <p className="text-xs text-muted-foreground">Selected role: {selectedRole.name}</p> : null}
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="password">{isEditMode ? 'New Password (optional)' : 'Password (optional)'}</Label>
-              <Input
-                id="password"
-                type="password"
-                value={form.password}
-                onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-              />
-              {!isEditMode ? (
-                <p className="text-xs text-muted-foreground">
-                  Leave empty to auto-generate a temporary password and send it in onboarding email.
-                </p>
-              ) : null}
-              {fieldErrors.password ? <p className="text-xs text-destructive">{fieldErrors.password[0]}</p> : null}
+              <Label>Branches</Label>
+              <div className="max-h-36 overflow-y-auto rounded-md border p-3 space-y-2">
+                {branches.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No active branches available.</p>
+                ) : (
+                  branches.map((branch) => {
+                    const checked = form.branchIds.includes(Number(branch.id));
+
+                    return (
+                      <label key={branch.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(isChecked) => {
+                            setForm((previous) => {
+                              if (isChecked) {
+                                if (previous.branchIds.includes(Number(branch.id))) {
+                                  return previous;
+                                }
+
+                                return {
+                                  ...previous,
+                                  branchIds: [...previous.branchIds, Number(branch.id)],
+                                };
+                              }
+
+                              return {
+                                ...previous,
+                                branchIds: previous.branchIds.filter((id) => id !== Number(branch.id)),
+                              };
+                            });
+                          }}
+                        />
+                        <span>{branch.name}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Select at least one branch.</p>
+              {fieldErrors.branch_ids ? <p className="text-xs text-destructive">{fieldErrors.branch_ids[0]}</p> : null}
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="password-confirmation">Confirm Password</Label>
-              <Input
-                id="password-confirmation"
-                type="password"
-                value={form.passwordConfirmation}
-                onChange={(event) => setForm((prev) => ({ ...prev, passwordConfirmation: event.target.value }))}
-                required={form.password.trim() !== ''}
-              />
-              {fieldErrors.password_confirmation ? <p className="text-xs text-destructive">{fieldErrors.password_confirmation[0]}</p> : null}
-            </div>
-            <div className="flex items-center justify-between rounded-lg border p-3 mt-7">
-              <div>
-                <p className="text-sm font-medium">Active Account</p>
-                <p className="text-xs text-muted-foreground">Enable or disable this user's access.</p>
+          {!isEditMode ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="password">Password (optional)</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave empty to auto-generate a temporary password and send it in onboarding email.
+                </p>
+                {fieldErrors.password ? <p className="text-xs text-destructive">{fieldErrors.password[0]}</p> : null}
               </div>
-              <Switch
-                checked={form.isActive}
-                onCheckedChange={(checked) => setForm((prev) => ({ ...prev, isActive: checked }))}
-              />
+
+              <div className="space-y-2">
+                <Label htmlFor="password-confirmation">Confirm Password</Label>
+                <Input
+                  id="password-confirmation"
+                  type="password"
+                  autoComplete="new-password"
+                  value={form.passwordConfirmation}
+                  onChange={(event) => setForm((prev) => ({ ...prev, passwordConfirmation: event.target.value }))}
+                  required={form.password.trim() !== ''}
+                />
+                {fieldErrors.password_confirmation ? <p className="text-xs text-destructive">{fieldErrors.password_confirmation[0]}</p> : null}
+              </div>
             </div>
+          ) : null}
+
+          <div className="flex items-center justify-between rounded-lg border p-3 mt-7">
+            <div>
+              <p className="text-sm font-medium">Active Account</p>
+              <p className="text-xs text-muted-foreground">Enable or disable this user's access.</p>
+            </div>
+            <Switch
+              checked={form.isActive}
+              onCheckedChange={(checked) => setForm((prev) => ({ ...prev, isActive: checked }))}
+            />
           </div>
 
           <div className="space-y-2">

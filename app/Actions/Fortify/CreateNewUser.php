@@ -2,6 +2,8 @@
 
 namespace App\Actions\Fortify;
 
+use App\Models\Branch;
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -34,10 +36,28 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        $company = Company::query()->firstOrCreate(
+            ['slug' => 'default-company'],
+            ['name' => 'Default Company', 'settings' => ['currency' => 'USD']]
+        );
+
+        $defaultBranch = Branch::query()->firstOrCreate(
+            ['company_id' => $company->id, 'slug' => 'main-branch'],
+            ['name' => 'Main Branch', 'code' => 'MAIN', 'status' => 'active', 'settings' => []]
+        );
+
+        $user = User::create([
+            'company_id' => $company->id,
+            'preferred_branch_id' => $defaultBranch->id,
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
         ]);
+
+        $user->branches()->syncWithoutDetaching([
+            $defaultBranch->id => ['is_primary' => true],
+        ]);
+
+        return $user;
     }
 }
