@@ -101,6 +101,31 @@ class UserController extends Controller
         return response()->json($user->load(['roles:id,name', 'permissions:id,name', 'branches:id,name']));
     }
 
+    public function logs(Request $request, User $user): JsonResponse
+    {
+        $this->ensureUserIsVisibleInScope($request, $user);
+
+        $logs = AuditLog::query()
+            ->with(['actor:id,name', 'branch:id,name'])
+            ->where(function ($query) use ($user) {
+                $query->where('actor_id', $user->id)
+                    ->orWhere(function ($nested) use ($user) {
+                        $nested->where('auditable_id', $user->id)
+                            ->where('auditable_type', User::class);
+                    });
+            })
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $query->where('action', 'like', "%{$request->string('search')}%");
+            })
+            ->when($request->filled('action'), function ($query) use ($request) {
+                $query->where('action', (string) $request->string('action'));
+            })
+            ->orderByDesc('created_at')
+            ->paginate((int) $request->integer('per_page', 15));
+
+        return response()->json($logs);
+    }
+
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
         $this->ensureUserIsVisibleInScope($request, $user);

@@ -116,6 +116,7 @@ Route::middleware(['auth'])->group(function () {
             Route::patch('/branches/{branch}/archive', [BranchController::class, 'archive'])->name('branches.archive');
 
             Route::post('/users/bulk/force-password-change', [UserController::class, 'bulkForcePasswordChange'])->name('users.bulk.force-password-change');
+            Route::get('/users/{user}/logs', [UserController::class, 'logs'])->name('users.logs');
             Route::apiResource('users', UserController::class);
             Route::apiResource('branches', BranchController::class);
             Route::apiResource('roles', RoleController::class);
