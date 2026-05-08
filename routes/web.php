@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\BranchContextController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Settings\ApiKeyController;
@@ -14,6 +15,10 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return Inertia::render('Welcome');
 });
+
+Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])->name('social.redirect');
+Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])->name('social.callback');
+Route::get('/auth/google', fn () => redirect()->route('social.redirect', ['provider' => 'google']));
 
 Route::middleware(['auth'])->group(function () {
     Route::post('/branches/switch', [BranchContextController::class, 'update'])->name('branches.switch');

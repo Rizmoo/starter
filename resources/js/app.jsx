@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ThemeProvider } from '@/Components/theme-provider';
+import { ColorThemeProvider } from '@/Components/color-theme-provider';
 import { AppProvider } from '@/Components/app-provider';
 import { Toaster } from '@/Components/ui/toaster';
 
@@ -15,10 +16,12 @@ createInertiaApp({
         const root = createRoot(el);
         root.render(
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-                <AppProvider initialAuth={props.initialPage.props.auth}>
-                    <App {...props} />
-                    <Toaster />
-                </AppProvider>
+                <ColorThemeProvider>
+                    <AppProvider initialAuth={props.initialPage.props.auth}>
+                        <App {...props} />
+                        <Toaster />
+                    </AppProvider>
+                </ColorThemeProvider>
             </ThemeProvider>
         );
     },

@@ -61,7 +61,6 @@
     --card-foreground: 210 20% 98%;
     --popover: 222 47% 6%;
     --popover-foreground: 210 20% 98%;
-    --primary: 142.1 70.6% 45.3%;
     --primary-foreground: 144.9 80.4% 10%;
     --secondary: 215 27.9% 12%;
     --secondary-foreground: 210 20% 98%;
@@ -73,17 +72,50 @@
     --destructive-foreground: 210 20% 98%;
     --border: 217 33% 15%;
     --input: 217 33% 15%;
-    --ring: 142.1 70.6% 45.3%;
     
     --sidebar-background: 222 47% 5%;
     --sidebar-foreground: 210 20% 98%;
     --sidebar-muted-foreground: 217.9 10.6% 60%;
-    --sidebar-primary: 142.1 70.6% 45.3%;
     --sidebar-primary-foreground: 144.9 80.4% 10%;
     --sidebar-accent: 215 27.9% 12%;
     --sidebar-accent-foreground: 210 20% 98%;
     --sidebar-border: 217 33% 15%;
-    --sidebar-ring: 142.1 70.6% 45.3%;
+  }
+
+  /* Color Themes (Must be after :root and .dark to ensure overrides work via specificity) */
+  [data-color-theme="purple"] {
+    --primary: 262.1 83.3% 57.8%;
+    --ring: 262.1 83.3% 57.8%;
+    --sidebar-primary: 262.1 83.3% 57.8%;
+    --sidebar-ring: 262.1 83.3% 57.8%;
+  }
+
+  [data-color-theme="red"] {
+    --primary: 0 84.4% 60.2%;
+    --ring: 0 84.4% 60.2%;
+    --sidebar-primary: 0 84.4% 60.2%;
+    --sidebar-ring: 0 84.4% 60.2%;
+  }
+
+  [data-color-theme="blue"] {
+    --primary: 221.2 83.2% 53.3%;
+    --ring: 221.2 83.2% 53.3%;
+    --sidebar-primary: 221.2 83.2% 53.3%;
+    --sidebar-ring: 221.2 83.2% 53.3%;
+  }
+
+  [data-color-theme="orange"] {
+    --primary: 24.6 95% 53.1%;
+    --ring: 24.6 95% 53.1%;
+    --sidebar-primary: 24.6 95% 53.1%;
+    --sidebar-ring: 24.6 95% 53.1%;
+  }
+
+  [data-color-theme="indigo"] {
+    --primary: 243.4 75.4% 58.6%;
+    --ring: 243.4 75.4% 58.6%;
+    --sidebar-primary: 243.4 75.4% 58.6%;
+    --sidebar-ring: 243.4 75.4% 58.6%;
   }
 }
 
@@ -153,4 +185,3 @@
       scrollbar-color: hsl(var(--sidebar-border)) transparent;
     }
 }
-

@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
-  LayoutDashboard, Users, Package, ShoppingCart,
+  LayoutDashboard, Users,
   Settings, BarChart, PanelLeft,
-  FileText, Tags, TrendingUp, Wallet, Receipt,
-  Building, CalendarCheck2, Shield, Bell
+  Shield, Bell, Building
 } from 'lucide-react';
 import { cn } from '@/Lib/utils';
 import { Button } from '@/Components/ui/button';
@@ -20,7 +19,6 @@ function resolveActiveModule(url) {
 }
 
 // ─── Navigation Config ──────────────────────────────────────────────
-// Customize this array to define your sidebar navigation
 export const navItems = [
   {
     id: 'dashboard',
@@ -31,7 +29,6 @@ export const navItems = [
         label: 'Overview',
         links: [
           { href: '/dashboard', label: 'Main Dashboard', icon: LayoutDashboard },
-          { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart },
         ]
       },
     ]
@@ -46,63 +43,6 @@ export const navItems = [
         links: [
           { href: '/users', label: 'All Users', icon: Users },
           { href: '/users/roles', label: 'Roles & Permissions', icon: Shield },
-        ]
-      },
-    ]
-  },
-  {
-    id: 'products',
-    label: 'Products',
-    icon: Package,
-    groups: [
-      {
-        label: 'Catalog',
-        links: [
-          { href: '/products', label: 'All Products', icon: Package },
-          { href: '/products/categories', label: 'Categories', icon: Tags },
-        ]
-      },
-    ]
-  },
-  {
-    id: 'orders',
-    label: 'Orders',
-    icon: ShoppingCart,
-    groups: [
-      {
-        label: 'Management',
-        links: [
-          { href: '/orders', label: 'All Orders', icon: ShoppingCart },
-          { href: '/orders/invoices', label: 'Invoices', icon: Receipt },
-          { href: '/orders/quotes', label: 'Quotes', icon: FileText },
-        ]
-      },
-    ]
-  },
-  {
-    id: 'finance',
-    label: 'Finance',
-    icon: Wallet,
-    groups: [
-      {
-        label: 'Overview',
-        links: [
-          { href: '/finance', label: 'Dashboard', icon: LayoutDashboard },
-          { href: '/finance/transactions', label: 'Transactions', icon: TrendingUp },
-          { href: '/finance/reports', label: 'Reports', icon: BarChart },
-        ]
-      },
-    ]
-  },
-  {
-    id: 'calendar',
-    label: 'Calendar',
-    icon: CalendarCheck2,
-    groups: [
-      {
-        label: 'Schedule',
-        links: [
-          { href: '/calendar', label: 'Calendar', icon: CalendarCheck2 },
         ]
       },
     ]
@@ -144,12 +84,15 @@ function SidebarNav({ activeModule, setActiveModule }) {
               className={cn(
                 "h-10 w-10 mx-auto flex items-center justify-center rounded-lg transition-all duration-200",
                 isActive 
-                  ? "bg-[#152133] text-[#2fdc8f] shadow-[inset_0_0_0_1px_rgba(148,163,184,0.14),0_6px_18px_rgba(21,33,51,0.55)]"
+                  ? "bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.1),0_6px_18px_rgba(0,0,0,0.4)]"
                   : "text-[#7f8ba1] hover:text-[#d3d9e4] hover:bg-[#141d2c]"
               )}
             >
               <item.icon className="!h-4 !w-4" />
             </button>
+            {isActive && (
+              <div className="absolute right-0 top-2 bottom-2 w-0.5 bg-primary rounded-l-full shadow-[0_0_8px_hsl(var(--primary)/0.4)]" />
+            )}
           </li>
         );
       })}
@@ -157,7 +100,6 @@ function SidebarNav({ activeModule, setActiveModule }) {
   );
 }
 
-// ─── Main Sidebar Component ─────────────────────────────────────────
 export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = () => {} }) {
   const { url } = usePage();
   const [activeModule, setActiveModule] = useState(() => resolveActiveModule(url));
@@ -174,7 +116,6 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
     setIsSecondaryCollapsed(false);
   };
 
-  // Keep sidebar module selection in sync with route changes.
   React.useEffect(() => {
     const moduleId = resolveActiveModule(url);
     setActiveModule(moduleId);
@@ -183,7 +124,6 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
     onCloseMobileMenu();
   }, [url, onCloseMobileMenu]);
 
-  // Find the active nav item
   const activeNavItem = navItems.find((item) => item.id === activeModule);
 
   return (
@@ -205,22 +145,20 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
           isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
-        {/* Icon rail */}
         <aside className="w-[4.5rem] h-full border-r border-[#1E222B] bg-[#0B0E14] flex flex-col flex-shrink-0">
           <div className="h-14 flex items-center justify-center border-b border-[#1E222B]">
             <AppLogo showText={false} />
           </div>
-          <div className="flex-1 py-4 overflow-y-auto">
+          <div className="flex-1 py-4 overflow-y-auto pb-20">
             <SidebarNav activeModule={activeModule} setActiveModule={handleModuleClick} />
           </div>
           <div className="h-14 flex items-center justify-center border-t border-[#1E222B]">
-            <div className="h-8 w-8 rounded-full bg-[#181C23] flex items-center justify-center text-xs font-bold text-gray-300">
+            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-extrabold border border-primary/20">
               {appInitials}
             </div>
           </div>
         </aside>
 
-        {/* Secondary panel */}
         {activeNavItem && (
           <aside
             className={cn(
@@ -228,9 +166,8 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
               isSecondaryCollapsed ? 'w-0 border-r-0' : 'w-64'
             )}
           >
-            {/* Panel Header */}
             <div className="h-14 px-4 flex items-center justify-between border-b border-[#1E222B] min-w-[16rem]">
-              <span className="text-sm font-bold text-white tracking-tight">
+              <span className="text-sm font-bold text-white tracking-tight uppercase tracking-widest text-[11px] opacity-70">
                 {activeNavItem.label}
               </span>
               <Button
@@ -243,7 +180,6 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
               </Button>
             </div>
 
-            {/* Panel Content (Accordions) */}
             <div className="flex-1 overflow-y-auto px-2 py-4 min-w-[16rem]">
               <Accordion
                 type="multiple"
@@ -252,7 +188,7 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
               >
                 {activeNavItem.groups?.map((group, gi) => (
                   <AccordionItem key={gi} value={`item-${gi}`} className="border-none">
-                    <AccordionTrigger className="flex items-center justify-between w-full px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest hover:no-underline hover:text-gray-300">
+                    <AccordionTrigger className="flex items-center justify-between w-full px-3 py-2 text-[10px] font-extrabold text-gray-500 uppercase tracking-widest hover:no-underline hover:text-gray-300">
                       {group.label}
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 pb-2 space-y-1">
@@ -265,21 +201,21 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
                             href={link.href}
                             onClick={onCloseMobileMenu}
                             className={cn(
-                              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-all duration-200 group',
+                              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group relative overflow-hidden',
                               isLinkActive
-                                ? 'text-green-500 bg-[#181C23] shadow-sm'
-                                : 'text-gray-400 hover:text-green-500 hover:bg-[#181C23]/50'
+                                ? 'text-primary bg-primary/10'
+                                : 'text-gray-400 hover:text-white hover:bg-[#181C23]'
                             )}
                           >
                             <LinkIcon
                               className={cn(
-                                'h-4.5 w-4.5 shrink-0 transition-colors',
-                                isLinkActive ? 'text-green-500' : 'text-gray-500 group-hover:text-green-500'
+                                'h-4 w-4 shrink-0 transition-colors',
+                                isLinkActive ? 'text-primary' : 'text-gray-500 group-hover:text-gray-300'
                               )}
                             />
                             <span className="truncate">{link.label}</span>
                             {isLinkActive && (
-                              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.6)]" />
                             )}
                           </Link>
                         );
@@ -290,15 +226,14 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
               </Accordion>
             </div>
 
-            {/* Panel Footer */}
             <div className="p-4 border-t border-[#1E222B] bg-[#0D1017]">
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20 text-[10px] font-bold text-green-500">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground text-[10px] font-black shadow-lg shadow-primary/20">
                   {appInitials}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-bold text-white truncate">{appName}</p>
-                  <p className="text-[10px] text-gray-500 truncate">Application</p>
+                  <p className="text-[10px] text-gray-500 truncate uppercase tracking-widest font-medium">Platform</p>
                 </div>
               </div>
             </div>
