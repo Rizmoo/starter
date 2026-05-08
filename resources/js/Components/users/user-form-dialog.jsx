@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Upload, CheckCircle2 } from 'lucide-react';
+import { useToast } from '@/Hooks/use-toast';
 
 import { Button } from '@/Components/ui/button';
 import {
@@ -57,6 +58,7 @@ export default function UserFormDialog({
   const [errorMessage, setErrorMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
 
+  const { toast } = useToast();
   const isEditMode = mode === 'edit';
 
   useEffect(() => {
@@ -117,6 +119,13 @@ export default function UserFormDialog({
       } else {
         await window.axios.post('/admin/users', payload);
       }
+
+      toast({
+        title: isEditMode ? 'User updated' : 'User created',
+        description: isEditMode 
+          ? `Changes to ${form.name} have been saved.` 
+          : `${form.name} has been added to the team.`,
+      });
 
       onSaved?.();
       onOpenChange(false);
