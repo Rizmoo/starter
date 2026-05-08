@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Com
 import { Badge } from '@/Components/ui/badge';
 import { DataTable } from '@/Components/ui/data-table';
 import { DataTableColumnHeader } from '@/Components/ui/data-table-column-header';
-import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { Button } from '@/Components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { Link, router } from '@inertiajs/react';
@@ -228,6 +228,7 @@ export default function UsersIndexPage() {
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
+              <AvatarImage src={row.original.profile_picture_url || row.original.social_avatar} alt={name} />
               <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
