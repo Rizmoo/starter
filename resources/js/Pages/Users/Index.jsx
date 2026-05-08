@@ -7,7 +7,8 @@ import { DataTableColumnHeader } from '@/Components/ui/data-table-column-header'
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import { Button } from '@/Components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/Components/ui/tabs';
-import { MoreHorizontal, Plus, ShieldAlert, UserCheck, UserX, Trash2, KeyRound, Lock, UserMinus, Loader2 } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { MoreHorizontal, Plus, ShieldAlert, UserCheck, UserX, Trash2, KeyRound, Lock, UserMinus, Loader2, Eye } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -230,7 +231,9 @@ export default function UsersIndexPage() {
               <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
-              <span className="font-semibold text-sm leading-none mb-1">{name}</span>
+              <Link href={route('users.show', row.original.id)} className="font-semibold text-sm leading-none mb-1 hover:text-primary transition-colors">
+                {name}
+              </Link>
               <span className="text-xs text-muted-foreground">{row.original.email}</span>
             </div>
           </div>
@@ -365,6 +368,11 @@ export default function UsersIndexPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => router.visit(route('users.show', row.original.id))}
+                >
+                  <Eye className="h-4 w-4 mr-2" /> View User Profile
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
                     setDialogMode('edit');

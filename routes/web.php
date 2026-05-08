@@ -9,6 +9,7 @@ use App\Http\Controllers\BranchContextController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Settings\ApiKeyController;
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -31,6 +32,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/users', function () {
             return Inertia::render('Users/Index');
         })->name('users.page');
+
+        Route::get('/users/{user}', function (User $user) {
+            return Inertia::render('Users/Show', [
+                'id' => $user->id,
+            ]);
+        })->name('users.show');
 
         Route::get('/users/roles', function () {
             return Inertia::render('Roles/Index');
