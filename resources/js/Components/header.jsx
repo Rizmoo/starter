@@ -1,7 +1,7 @@
 import { Link, usePage, router } from '@inertiajs/react';
 import { ThemeToggle } from '@/Components/theme-toggle';
 import { Button } from '@/Components/ui/button';
-import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { Badge } from '@/Components/ui/badge';
 import {
   DropdownMenu,
@@ -198,6 +198,7 @@ export default function Header({ onToggleMobileMenu }) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.profile_picture_url || user?.social_avatar} alt={user?.name} />
                 <AvatarFallback className="bg-primary/10 text-primary">
                   {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                 </AvatarFallback>

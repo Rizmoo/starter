@@ -86,9 +86,20 @@ Route::middleware(['auth'])->group(function () {
                 'email' => ['nullable', 'email', 'max:255'],
                 'phone' => ['nullable', 'string', 'max:50'],
                 'address' => ['nullable', 'string', 'max:1000'],
+                'logo' => ['nullable', 'image', 'max:5000'],
             ]);
 
-            Company::query()->whereKey($companyId)->update($validated);
+            $company = \App\Models\Company::findOrFail($companyId);
+            $company->fill(\Illuminate\Support\Arr::except($validated, ['logo']));
+
+            if (request()->hasFile('logo')) {
+                if ($company->logo_path) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($company->logo_path);
+                }
+                $company->logo_path = request()->file('logo')->store('logos', 'public');
+            }
+
+            $company->save();
 
             return back()->with('success', 'Company settings updated successfully.');
         })->middleware(['role:Admin'])->name('settings.company.update');

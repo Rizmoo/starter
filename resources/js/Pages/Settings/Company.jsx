@@ -14,12 +14,16 @@ export default function CompanySettingsPage({ company }) {
     email: company?.email || '',
     phone: company?.phone || '',
     address: company?.address || '',
+    logo: null,
+    _method: 'PUT',
   });
+
+  const [logoPreview, setLogoPreview] = useState(company?.logo_url || '');
 
   const submit = (event) => {
     event.preventDefault();
 
-    form.put('/settings/company', {
+    form.post('/settings/company', {
       preserveScroll: true,
     });
   };
@@ -51,7 +55,39 @@ export default function CompanySettingsPage({ company }) {
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={submit} className="space-y-5">
+            <form onSubmit={submit} className="space-y-6">
+              <div className="space-y-2">
+                <Label>Company Logo</Label>
+                <div className="flex items-center gap-4">
+                  <div className="h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center overflow-hidden bg-muted/30">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo preview" className="h-full w-full object-contain" />
+                    ) : (
+                      <Building className="h-8 w-8 text-muted-foreground/40" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      id="company-logo"
+                      type="file"
+                      accept="image/*"
+                      className="max-w-xs"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          form.setData('logo', file);
+                          const reader = new FileReader();
+                          reader.onload = (e) => setLogoPreview(e.target.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">Recommended size: 512x512px. PNG or JPG.</p>
+                    {form.errors.logo ? <p className="text-xs text-destructive">{form.errors.logo}</p> : null}
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="company-name">Company Name</Label>
                 <Input

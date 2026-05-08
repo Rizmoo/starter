@@ -114,4 +114,16 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Phone Verification
+    |--------------------------------------------------------------------------
+    |
+    | If this option is set to true, users will be required to verify their
+    | phone number before they can fully access the application.
+    |
+    */
+
+    'phone_verification_required' => env('AUTH_PHONE_VERIFICATION_REQUIRED', false),
+
 ];

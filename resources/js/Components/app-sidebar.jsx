@@ -101,11 +101,12 @@ function SidebarNav({ activeModule, setActiveModule }) {
 }
 
 export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = () => {} }) {
-  const { url } = usePage();
+  const { url, props } = usePage();
+  const company = props.company;
   const [activeModule, setActiveModule] = useState(() => resolveActiveModule(url));
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
 
-  const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+  const appName = company?.name || import.meta.env.VITE_APP_NAME || 'Laravel';
   const appWords = appName.trim().split(/\s+/).filter(Boolean);
   const appInitials = appWords.length > 1
     ? appWords.slice(0, 2).map((word) => word[0]?.toUpperCase() || '').join('')
@@ -147,14 +148,18 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
       >
         <aside className="w-[4.5rem] h-full border-r border-[#1E222B] bg-[#0B0E14] flex flex-col flex-shrink-0">
           <div className="h-14 flex items-center justify-center border-b border-[#1E222B]">
-            <AppLogo showText={false} />
+            <AppLogo showText={false} logoUrl={company?.logo_url} />
           </div>
           <div className="flex-1 py-4 overflow-y-auto pb-20">
             <SidebarNav activeModule={activeModule} setActiveModule={handleModuleClick} />
           </div>
           <div className="h-14 flex items-center justify-center border-t border-[#1E222B]">
-            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-extrabold border border-primary/20">
-              {appInitials}
+            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-extrabold border border-primary/20 overflow-hidden">
+              {company?.logo_url ? (
+                <img src={company.logo_url} className="h-full w-full object-cover" alt="Logo" />
+              ) : (
+                appInitials
+              )}
             </div>
           </div>
         </aside>
@@ -228,8 +233,12 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
 
             <div className="p-4 border-t border-[#1E222B] bg-[#0D1017]">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground text-[10px] font-black shadow-lg shadow-primary/20">
-                  {appInitials}
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground text-[10px] font-black shadow-lg shadow-primary/20 overflow-hidden">
+                  {company?.logo_url ? (
+                    <img src={company.logo_url} className="h-full w-full object-cover" alt="Logo" />
+                  ) : (
+                    appInitials
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-bold text-white truncate">{appName}</p>

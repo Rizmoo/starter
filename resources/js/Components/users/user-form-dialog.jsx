@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 const INITIAL_FORM = {
   name: '',
   email: '',
+  phone: '',
   roleId: '',
   branchIds: [],
   password: '',
@@ -53,6 +54,7 @@ export default function UserFormDialog({
   onSaved,
 }) {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [profileFile, setProfileFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -70,6 +72,7 @@ export default function UserFormDialog({
       setForm({
         name: user.name || '',
         email: user.email || '',
+        phone: user.phone_number || '',
         roleId: (user.roles && user.roles[0] ? String(user.roles[0].id) : ''),
         branchIds: (user.branches || []).map((branch) => Number(branch.id)),
         password: '',
@@ -77,7 +80,8 @@ export default function UserFormDialog({
         bio: '',
         isActive: (user.status || '').toLowerCase() === 'active',
       });
-      setAvatarPreview('');
+      setAvatarPreview(user.profile_picture_url || user.social_avatar || '');
+      setProfileFile(null);
       setErrorMessage('');
       setFieldErrors({});
       return;
@@ -85,6 +89,7 @@ export default function UserFormDialog({
 
     setForm(INITIAL_FORM);
     setAvatarPreview('');
+    setProfileFile(null);
     setErrorMessage('');
     setFieldErrors({});
   }, [open, isEditMode, user]);
@@ -101,23 +106,39 @@ export default function UserFormDialog({
     setFieldErrors({});
 
     try {
-      const payload = {
-        name: form.name,
-        email: form.email,
-        status: form.isActive ? 'active' : 'inactive',
-        role_ids: form.roleId ? [Number(form.roleId)] : [],
-        branch_ids: form.branchIds,
-      };
+      const formData = new FormData();
+      formData.append('name', form.name);
+      formData.append('email', form.email);
+      formData.append('phone_number', form.phone);
+      formData.append('status', form.isActive ? 'active' : 'inactive');
+      
+      if (form.roleId) {
+        formData.append('role_ids[]', Number(form.roleId));
+      }
+      
+      form.branchIds.forEach(id => {
+        formData.append('branch_ids[]', id);
+      });
 
       if (!isEditMode && form.password.trim() !== '') {
-        payload.password = form.password;
-        payload.password_confirmation = form.passwordConfirmation;
+        formData.append('password', form.password);
+        formData.append('password_confirmation', form.passwordConfirmation);
+      }
+
+      if (profileFile) {
+        formData.append('profile_picture', profileFile);
       }
 
       if (isEditMode && user) {
-        await window.axios.patch(`/admin/users/${user.id}`, payload);
+        // Use POST with _method spoofing for multipart PATCH
+        formData.append('_method', 'PATCH');
+        await window.axios.post(`/admin/users/${user.id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       } else {
-        await window.axios.post('/admin/users', payload);
+        await window.axios.post('/admin/users', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
 
       toast({
@@ -181,6 +202,7 @@ export default function UserFormDialog({
                       return;
                     }
 
+                    setProfileFile(file);
                     const reader = new FileReader();
                     reader.onload = () => {
                       if (typeof reader.result === 'string') {
@@ -194,10 +216,10 @@ export default function UserFormDialog({
                   <Upload className="mr-2 h-4 w-4" />
                   Choose Image
                 </Button>
-                <p className="mt-2 text-xs text-muted-foreground">JPG, PNG or GIF. Max size 2MB.</p>
-              </div>
+                <p className="mt-2 text-xs text-muted-foreground">JPG, PNG or GIF. Max size 5MB.</p>
             </div>
           </div>
+        </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -220,6 +242,19 @@ export default function UserFormDialog({
                 required
               />
               {fieldErrors.email ? <p className="text-xs text-destructive">{fieldErrors.email[0]}</p> : null}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={form.phone}
+                onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+                placeholder="+1 (555) 000-0000"
+              />
+              {fieldErrors.phone_number ? <p className="text-xs text-destructive">{fieldErrors.phone_number[0]}</p> : null}
             </div>
           </div>
 

@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['name', 'slug', 'logo_path', 'email', 'phone', 'address', 'settings'])]
 class Company extends Model
 {
+    protected $appends = ['logo_url'];
+
     /**
      * @return array<string, string>
      */
@@ -17,6 +19,13 @@ class Company extends Model
         return [
             'settings' => 'array',
         ];
+    }
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo_path
+            ? asset('storage/'.$this->logo_path)
+            : null;
     }
 
     public function users(): HasMany

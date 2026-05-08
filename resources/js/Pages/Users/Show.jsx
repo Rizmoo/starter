@@ -28,7 +28,10 @@ import {
   Info,
   History,
   Search,
-  DownloadCloud
+  DownloadCloud,
+  Phone,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { Label } from '@/Components/ui/label';
 import {
@@ -298,7 +301,7 @@ export default function UserShowPage({ id }) {
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border p-8 shadow-sm">
           <div className="flex flex-col md:flex-row gap-8 items-center md:items-start relative z-10">
             <Avatar className="h-32 w-32 border-4 border-background shadow-xl ring-1 ring-primary/10">
-              <AvatarImage src={user.social_avatar} alt={user.name} />
+              <AvatarImage src={user.profile_picture_url || user.social_avatar} alt={user.name} />
               <AvatarFallback className="bg-primary/10 text-primary text-4xl font-black">{initials}</AvatarFallback>
             </Avatar>
             
@@ -310,6 +313,16 @@ export default function UserShowPage({ id }) {
                 </div>
                 <div className="flex flex-wrap justify-center md:justify-start gap-4 text-muted-foreground italic font-medium">
                   <div className="flex items-center gap-1.5"><Mail className="h-4 w-4" /> {user.email}</div>
+                  {user.phone_number && (
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="h-4 w-4" /> {user.phone_number}
+                      {user.phone_verified_at ? (
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <AlertCircle className="h-3 w-3 text-amber-500" />
+                      )}
+                    </div>
+                  )}
                   {user.last_login_at && (
                     <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> Last seen {new Date(user.last_login_at).toLocaleString()}</div>
                   )}

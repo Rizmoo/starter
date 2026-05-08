@@ -54,7 +54,7 @@ class UserController extends Controller
         $companyId = $request->user()?->company_id ?? Company::query()->value('id');
         $branchIds = $this->normalizeBranchIds($request, $validated['branch_ids'] ?? null, $context);
 
-        [$user, $temporaryPassword] = DB::transaction(function () use ($validated, $companyId, $branchIds): array {
+        [$user, $temporaryPassword] = DB::transaction(function () use ($validated, $companyId, $branchIds, $request): array {
             $temporaryPassword = blank($validated['password'] ?? null)
                 ? Str::password(14)
                 : null;
@@ -63,10 +63,16 @@ class UserController extends Controller
                 'company_id' => $companyId,
                 'name' => $validated['name'],
                 'email' => $validated['email'],
+                'phone_number' => $validated['phone_number'] ?? null,
                 'password' => $validated['password'] ?? $temporaryPassword,
                 'force_password_change' => true,
                 'status' => $validated['status'] ?? 'active',
             ]);
+
+            if ($request->hasFile('profile_picture')) {
+                $user->profile_picture_path = $request->file('profile_picture')->store('profiles', 'public');
+                $user->save();
+            }
 
             $user->syncBranches($branchIds);
 
@@ -177,7 +183,14 @@ class UserController extends Controller
         $before = $user->load(['roles:id,name', 'permissions:id,name', 'branches:id,name'])->toArray();
 
         $updatedUser = DB::transaction(function () use ($validated, $user, $context, $request): User {
-            $user->fill(Arr::only($validated, ['name', 'email', 'password']));
+            $user->fill(Arr::only($validated, ['name', 'email', 'password', 'phone_number']));
+
+            if ($request->hasFile('profile_picture')) {
+                if ($user->profile_picture_path) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_picture_path);
+                }
+                $user->profile_picture_path = $request->file('profile_picture')->store('profiles', 'public');
+            }
 
             if (! empty($validated['password'])) {
                 $user->force_password_change = true;
