@@ -260,6 +260,30 @@ class UserController extends Controller
         return response()->json($user->fresh(['roles:id,name', 'permissions:id,name', 'branches:id,name']));
     }
 
+    public function bulkForcePasswordChange(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'user_ids' => ['required', 'array'],
+            'user_ids.*' => ['required', 'exists:users,id'],
+        ]);
+
+        $context = $this->resolveBranchContext->resolve($request);
+        $currentCompanyId = $request->user()?->company_id;
+
+        $users = User::query()
+            ->whereIn('id', $validated['user_ids'])
+            ->where('company_id', $currentCompanyId)
+            ->whereHas('branches', fn ($builder) => $builder->whereIn('branches.id', $context['visible_branch_ids']))
+            ->get();
+
+        foreach ($users as $user) {
+            $user->forceFill(['force_password_change' => true])->save();
+            $this->logAudit($request, 'users.bulk_force_password_change', $user, null, ['force_password_change' => true]);
+        }
+
+        return response()->json(['message' => sprintf('Successfully forced password change for %d users.', $users->count())]);
+    }
+
     private function logAudit(Request $request, string $action, User $subject, ?array $before, ?array $after): void
     {
         $context = $this->resolveBranchContext->resolve($request);

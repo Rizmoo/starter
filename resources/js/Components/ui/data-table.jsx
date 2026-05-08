@@ -7,7 +7,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search, Download, ChevronRight } from "lucide-react"
+import { ChevronDown, Search, Download, ChevronRight, X } from "lucide-react"
 
 import { Button } from "@/Components/ui/button"
 import {
@@ -218,7 +218,8 @@ export const DataTable = React.forwardRef((
     columns, data, searchKey, searchPlaceholder, initialColumnVisibility = {},
     tableName = "data", onRowClick, meta, onPageChange, onPageLengthChange,
     onSearch, isLoading, pageLength = 15, pageLengthOptions = [15, 30, 50, 100],
-    searchValue, mobileListConfig, companyDetails,
+    searchValue, mobileListConfig, companyDetails, onRowSelectionChange,
+    renderBulkActions,
   },
   ref
 ) => {
@@ -232,8 +233,14 @@ export const DataTable = React.forwardRef((
     if (searchValue !== undefined) setSearchTerm(searchValue);
   }, [searchValue]);
 
+  // Sync internal selection to external callback if provided
+  React.useEffect(() => {
+    if (onRowSelectionChange) {
+      onRowSelectionChange(rowSelection);
+    }
+  }, [rowSelection, onRowSelectionChange]);
+
   const pageCount = meta?.last_page ?? -1;
-  const [localPageSize, setLocalPageSize] = React.useState(pageLength);
 
   const table = useReactTable({
     data, columns,
@@ -306,8 +313,12 @@ export const DataTable = React.forwardRef((
   const totalPages = isServerPaginated ? meta.last_page : table.getPageCount();
   const totalRows = isServerPaginated ? meta.total : table.getFilteredRowModel().rows.length;
 
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const hasSelection = selectedRows.length > 0;
+
   return (
     <div className="w-full">
+      {/* Search and Global Actions */}
       <div className="flex w-full flex-wrap items-center gap-2 py-4">
         <div className="order-1 w-full sm:order-none sm:w-auto sm:flex-1">
           {(onSearch || (searchKey && columnExists)) && (
@@ -355,6 +366,29 @@ export const DataTable = React.forwardRef((
         </div>
       </div>
 
+      {/* Floating Bulk Actions Bar */}
+      {hasSelection && renderBulkActions && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <Card className="shadow-2xl border-primary/20 bg-background/95 backdrop-blur-md px-1.5 py-1.5 flex items-center gap-4">
+            <div className="flex items-center gap-3 px-3 py-1 bg-primary/10 rounded-lg text-primary text-sm font-bold border border-primary/10">
+              <span>{selectedRows.length} selected</span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-5 w-5 hover:bg-primary/20 hover:text-primary p-0 rounded-full"
+                onClick={() => table.toggleAllRowsSelected(false)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-2 pr-1">
+              {renderBulkActions(selectedRows.map(r => r.original), () => table.toggleAllRowsSelected(false))}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Desktop Table View */}
       <div className="rounded-md border bg-card hidden md:block overflow-x-auto">
         <Table>
           <TableHeader>
@@ -371,7 +405,7 @@ export const DataTable = React.forwardRef((
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">Loading...</TableCell>
+                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground animate-pulse font-medium italic">Loading records...</TableCell>
               </TableRow>
             ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
@@ -379,22 +413,27 @@ export const DataTable = React.forwardRef((
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   onClick={() => onRowClick?.(row.original)}
-                  className={cn(onRowClick && "cursor-pointer")}
+                  className={cn(
+                    "transition-colors",
+                    onRowClick && "cursor-pointer hover:bg-muted/50",
+                    row.getIsSelected() && "bg-primary/5 hover:bg-primary/10 border-primary/20"
+                  )}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell key={cell.id} className="py-2">{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">No results.</TableCell>
+                <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground font-medium">No results found matching your criteria.</TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
 
+      {/* Mobile ListView */}
       <MobileListView
         rows={table.getRowModel().rows}
         columns={columns}
@@ -404,36 +443,36 @@ export const DataTable = React.forwardRef((
         maxSecondaryFields={mobileListConfig?.maxSecondaryFields}
       />
 
-      {/* Pagination — works for both client-side and server-side */}
+      {/* Pagination Footer */}
       <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
-          Page {currentPage} of {totalPages}. Total {totalRows} rows.
+        <div className="text-sm text-muted-foreground font-medium">
+          Showing {totalRows > 0 ? (currentPage - 1) * (isServerPaginated ? pageLength : table.getState().pagination.pageSize) + 1 : 0} to {Math.min(currentPage * (isServerPaginated ? pageLength : table.getState().pagination.pageSize), totalRows)} of {totalRows} entries
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="hidden text-sm text-muted-foreground sm:inline">Show:</span>
+          <span className="hidden text-sm font-medium text-muted-foreground sm:inline">Rows per page:</span>
           <Select
-            value={String(isServerPaginated ? pageLength : localPageSize)}
+            value={String(isServerPaginated ? pageLength : table.getState().pagination.pageSize)}
             onValueChange={(value) => {
               const newSize = Number(value);
               if (isServerPaginated && onPageLengthChange) {
                 onPageLengthChange(newSize);
               } else {
-                setLocalPageSize(newSize);
                 table.setPageSize(newSize);
               }
             }}
           >
-            <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 w-16 border-muted-foreground/20"><SelectValue /></SelectTrigger>
             <SelectContent>
               {pageLengthOptions.map((option) => (
                 <SelectItem key={option} value={String(option)}>{option}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <div className="ml-auto flex items-center gap-2 sm:ml-0">
+          <div className="ml-auto flex items-center gap-1.5 sm:ml-0">
             <Button
               variant="outline"
               size="sm"
+              className="h-8 w-8 p-0"
               onClick={() => {
                 if (isServerPaginated) {
                   onPageChange(currentPage - 1);
@@ -443,11 +482,17 @@ export const DataTable = React.forwardRef((
               }}
               disabled={isServerPaginated ? currentPage === 1 : !table.getCanPreviousPage()}
             >
-              Previous
+              <ChevronRight className="h-4 w-4 rotate-180" />
             </Button>
+            <div className="flex items-center gap-1 px-2 py-1 bg-muted/30 rounded-md">
+              <span className="text-xs font-bold text-foreground">{currentPage}</span>
+              <span className="text-xs text-muted-foreground">/</span>
+              <span className="text-xs font-medium text-muted-foreground">{totalPages}</span>
+            </div>
             <Button
               variant="outline"
               size="sm"
+              className="h-8 w-8 p-0"
               onClick={() => {
                 if (isServerPaginated) {
                   onPageChange(currentPage + 1);
@@ -455,9 +500,9 @@ export const DataTable = React.forwardRef((
                   table.nextPage();
                 }
               }}
-              disabled={isServerPaginated ? currentPage === totalPages : !table.getCanNextPage()}
+              disabled={isServerPaginated ? currentPage === totalPages || totalPages === 0 : !table.getCanNextPage()}
             >
-              Next
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>

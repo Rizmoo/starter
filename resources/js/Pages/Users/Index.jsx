@@ -7,14 +7,19 @@ import { DataTableColumnHeader } from '@/Components/ui/data-table-column-header'
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import { Button } from '@/Components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/Components/ui/tabs';
-import { MoreHorizontal, Plus } from 'lucide-react';
+import { MoreHorizontal, Plus, ShieldAlert, UserCheck, UserX, Trash2, KeyRound, Lock, UserMinus } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 import UserFormDialog from '@/Components/users/user-form-dialog';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { ConfirmDialog } from '@/Components/ui/confirm-dialog';
+import { useToast } from '@/Hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/Components/ui/tooltip';
 
 function StatusBadge({ status }) {
   const normalized = (status || '').toLowerCase();
@@ -31,6 +36,7 @@ function StatusBadge({ status }) {
 }
 
 export default function UsersIndexPage() {
+  const { toast } = useToast();
   const [users, setUsers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [roles, setRoles] = useState([]);
@@ -44,6 +50,14 @@ export default function UsersIndexPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    user: null,
+    type: 'delete', // delete, suspend, activate
+    loading: false,
+  });
 
   const loadUsers = useCallback(async () => {
     try {
@@ -97,7 +111,86 @@ export default function UsersIndexPage() {
     loadOptions();
   }, []);
 
+  const handleUserAction = async (user, type) => {
+    setConfirmState({
+      open: true,
+      user,
+      type,
+      loading: false,
+    });
+  };
+
+  const executeUserAction = async () => {
+    const { user, type } = confirmState;
+    if (!user) return;
+
+    setConfirmState(prev => ({ ...prev, loading: true }));
+    try {
+      if (type === 'delete') {
+        await window.axios.delete(`/admin/users/${user.id}`);
+        toast({ title: 'User deleted', description: `${user.name} has been removed.` });
+      } else if (type === 'suspend') {
+        await window.axios.patch(`/admin/users/${user.id}/suspend`);
+        toast({ title: 'User suspended', description: `${user.name} access has been revoked.` });
+      } else if (type === 'activate') {
+        await window.axios.patch(`/admin/users/${user.id}/activate`);
+        toast({ title: 'User activated', description: `${user.name} can now access the system.` });
+      }
+      loadUsers();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Action failed',
+        description: e.response?.data?.message || 'Something went wrong.',
+      });
+    } finally {
+      setConfirmState(prev => ({ ...prev, open: false, loading: false }));
+    }
+  };
+
+  const handleBulkPasswordReset = async (selectedUsers, clearSelection) => {
+    setIsBulkSubmitting(true);
+    try {
+      await window.axios.post('/admin/users/bulk/force-password-change', {
+        user_ids: selectedUsers.map(u => u.id),
+      });
+      toast({
+        title: 'Security policy updated',
+        description: `Forced password reset for ${selectedUsers.length} team members.`,
+      });
+      clearSelection();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Batch update failed',
+        description: e.response?.data?.message || 'Unable to update security policies.',
+      });
+    } finally {
+      setIsBulkSubmitting(false);
+    }
+  };
+
   const columns = useMemo(() => [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
@@ -113,73 +206,162 @@ export default function UsersIndexPage() {
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
-              <AvatarFallback>{initials}</AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
             </Avatar>
-            <span className="font-medium">{name}</span>
+            <div className="flex flex-col">
+              <span className="font-semibold text-sm leading-none mb-1">{name}</span>
+              <span className="text-xs text-muted-foreground">{row.original.email}</span>
+            </div>
           </div>
         );
       },
-    },
-    {
-      accessorKey: 'email',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Email" />,
+      meta: { title: 'User' },
     },
     {
       accessorKey: 'roles',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
       cell: ({ row }) => {
-        const roleNames = (row.original.roles || []).map((role) => role.name).join(', ');
-        return roleNames || 'None';
+        const roles = row.original.roles || [];
+        if (roles.length === 0) return <span className="text-muted-foreground italic text-xs">No roles assigned</span>;
+        
+        return (
+          <div className="flex flex-wrap gap-1">
+            {roles.map(role => (
+              <Badge key={role.id} variant="secondary" className="px-1.5 py-0 text-[10px] uppercase font-bold tracking-wider">
+                {role.name}
+              </Badge>
+            ))}
+          </div>
+        );
       },
+      meta: { title: 'Roles' },
     },
     {
       accessorKey: 'branches',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Branches" />,
       cell: ({ row }) => {
-        const branchNames = (row.original.branches || []).map((branch) => branch.name).join(', ');
-        return branchNames || 'None';
+        const branches = row.original.branches || [];
+        if (branches.length === 0) return <span className="text-muted-foreground italic text-xs">None</span>;
+        
+        return (
+          <div className="flex flex-wrap gap-1">
+            {branches.map(branch => (
+              <span key={branch.id} className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted border">
+                {branch.name}
+              </span>
+            ))}
+          </div>
+        );
       },
+      meta: { title: 'Branches' },
     },
     {
       accessorKey: 'last_login_at',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last Login" />,
       cell: ({ row }) => {
-        if (!row.original.last_login_at) {
-          return 'Never';
-        }
-
-        return new Date(row.original.last_login_at).toLocaleString();
+        if (!row.original.last_login_at) return <span className="text-muted-foreground italic text-xs">Never</span>;
+        return <span className="text-xs">{new Date(row.original.last_login_at).toLocaleString()}</span>;
       },
+      meta: { title: 'Last Seen' },
     },
     {
       accessorKey: 'status',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      meta: { title: 'Status' },
     },
     {
       id: 'actions',
       enableHiding: false,
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Open actions</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => {
-                setDialogMode('edit');
-                setSelectedUser(row.original);
-                setDialogOpen(true);
-              }}
-            >
-              Edit User
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
+      cell: ({ row }) => {
+        const user = row.original;
+        const isActive = user.status === 'active';
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <TooltipProvider delayDuration={0}>
+              <div className="flex items-center gap-0.5">
+                {isActive ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-muted-foreground hover:text-amber-500 hover:bg-amber-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUserAction(user, 'suspend');
+                        }}
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Suspend Access</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUserAction(user, 'activate');
+                        }}
+                      >
+                        <UserCheck className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Activate Account</TooltipContent>
+                  </Tooltip>
+                )}
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUserAction(user, 'delete');
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete User</TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Open actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setDialogMode('edit');
+                    setSelectedUser(row.original);
+                    setDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Edit User Profile
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive" onClick={() => handleUserAction(user, 'delete')}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Remove User
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
     },
   ], []);
 
@@ -273,6 +455,36 @@ export default function UsersIndexPage() {
                   primaryColumns: ['name'],
                   maxSecondaryFields: 4,
                 }}
+                renderBulkActions={(selectedUsers, clearSelection) => (
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="h-8 bg-background hover:bg-primary hover:text-primary-foreground border-primary/20"
+                      onClick={() => handleBulkPasswordReset(selectedUsers, clearSelection)}
+                      disabled={isBulkSubmitting}
+                    >
+                      {isBulkSubmitting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+                      ) : (
+                        <KeyRound className="h-3.5 w-3.5 mr-2" />
+                      )}
+                      Force Password Reset
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="h-8 bg-background border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => {
+                        // For simplicity, we could handle bulk delete here too if needed
+                        console.log('Bulk delete:', selectedUsers);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      Bulk Remove
+                    </Button>
+                  </div>
+                )}
               />
             ) : null}
 
@@ -290,6 +502,29 @@ export default function UsersIndexPage() {
           roles={roles}
           branches={branches}
           onSaved={loadUsers}
+        />
+
+        <ConfirmDialog
+          open={confirmState.open}
+          onOpenChange={(open) => setConfirmState(prev => ({ ...prev, open }))}
+          onConfirm={executeUserAction}
+          loading={confirmState.loading}
+          title={
+            confirmState.type === 'delete' ? 'Delete User' :
+            confirmState.type === 'suspend' ? 'Suspend Access' : 'Activate User'
+          }
+          description={
+            confirmState.type === 'delete' 
+              ? `Are you sure you want to delete ${confirmState.user?.name}? This will remove all their access immediately and cannot be undone.`
+              : confirmState.type === 'suspend'
+              ? `Revoke system access for ${confirmState.user?.name}? They will be unable to log in until reactivated.`
+              : `Restore system access for ${confirmState.user?.name}?`
+          }
+          variant={confirmState.type === 'activate' ? 'default' : 'destructive'}
+          confirmText={
+            confirmState.type === 'delete' ? 'Delete User' :
+            confirmState.type === 'suspend' ? 'Suspend Access' : 'Activate Access'
+          }
         />
       </div>
     </DashboardLayout>
