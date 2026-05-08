@@ -7,7 +7,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search, Download, ChevronRight, X } from "lucide-react"
+import { ChevronDown, Search, Download, ChevronRight, X, DownloadCloud } from "lucide-react"
 
 import { Button } from "@/Components/ui/button"
 import {
@@ -219,7 +219,7 @@ export const DataTable = React.forwardRef((
     tableName = "data", onRowClick, meta, onPageChange, onPageLengthChange,
     onSearch, isLoading, pageLength = 15, pageLengthOptions = [15, 30, 50, 100],
     searchValue, mobileListConfig, companyDetails, onRowSelectionChange,
-    renderBulkActions,
+    renderBulkActions, onExportCsv,
   },
   ref
 ) => {
@@ -335,6 +335,11 @@ export const DataTable = React.forwardRef((
         </div>
 
         <div className="order-2 flex w-full flex-wrap items-center gap-2 sm:order-none sm:w-auto sm:ml-auto">
+          {onExportCsv && (
+            <Button variant="outline" size="sm" onClick={onExportCsv} className="h-9">
+              <DownloadCloud className="mr-2 h-4 w-4" /> CSV
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={exportToPdf} className="h-9">
             <Download className="mr-2 h-4 w-4" /> PDF
           </Button>
