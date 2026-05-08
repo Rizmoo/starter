@@ -84,11 +84,11 @@ class UserController extends Controller
             }
 
             if (isset($validated['role_ids'])) {
-                $user->syncRoles($validated['role_ids']);
+                $user->syncRoles(array_map('intval', (array) $validated['role_ids']));
             }
 
             if (isset($validated['permission_ids'])) {
-                $user->syncPermissions($validated['permission_ids']);
+                $user->syncPermissions(array_map('intval', (array) $validated['permission_ids']));
             }
 
             return [$user->load(['roles:id,name', 'permissions:id,name', 'branches:id,name']), $temporaryPassword];
@@ -211,11 +211,11 @@ class UserController extends Controller
             $user->save();
 
             if (isset($validated['role_ids'])) {
-                $user->syncRoles($validated['role_ids']);
+                $user->syncRoles(array_map('intval', (array) $validated['role_ids']));
             }
 
             if (isset($validated['permission_ids'])) {
-                $user->syncPermissions($validated['permission_ids']);
+                $user->syncPermissions(array_map('intval', (array) $validated['permission_ids']));
             }
 
             if (array_key_exists('branch_ids', $validated)) {

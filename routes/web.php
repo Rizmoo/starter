@@ -33,12 +33,6 @@ Route::middleware(['auth'])->group(function () {
             return Inertia::render('Users/Index');
         })->name('users.page');
 
-        Route::get('/users/{user}', function (User $user) {
-            return Inertia::render('Users/Show', [
-                'id' => $user->id,
-            ]);
-        })->name('users.show');
-
         Route::get('/users/roles', function () {
             return Inertia::render('Roles/Index');
         })->name('roles.page');
@@ -46,6 +40,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/users/roles/create', function () {
             return Inertia::render('Roles/Create');
         })->name('roles.create-page');
+
+        Route::get('/users/{user}', function (User $user) {
+            return Inertia::render('Users/Show', [
+                'id' => $user->id,
+            ]);
+        })->name('users.show');
 
         Route::redirect('/roles', '/users/roles')->name('roles.redirect');
         Route::redirect('/roles/create', '/users/roles/create')->name('roles.create-redirect');

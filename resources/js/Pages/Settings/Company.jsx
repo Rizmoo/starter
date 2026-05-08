@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Building, Loader2 } from 'lucide-react';
 
