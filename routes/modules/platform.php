@@ -15,7 +15,7 @@ Route::prefix('platform')->name('platform.')->group(function () {
     });
 
     // Protected Routes
-    Route::middleware('auth:platform')->group(function () {
+    Route::middleware('platform.admin')->group(function () {
         Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
