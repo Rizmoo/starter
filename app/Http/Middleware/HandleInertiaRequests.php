@@ -3,6 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Actions\Branch\ResolveBranchContext;
+use App\Models\PlatformAdmin;
+use App\Models\User;
+use App\Services\ModuleManager;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,7 +39,7 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $user = $request->user();
+        $user = $request->user('platform') ?: $request->user();
         $branchContext = app(ResolveBranchContext::class)->resolve($request);
 
         $notifications = [];
@@ -45,7 +48,7 @@ class HandleInertiaRequests extends Middleware
         $currentBranch = null;
         $company = null;
 
-        if ($user) {
+        if ($user && $user instanceof User) {
             $unreadCount = $user->unreadNotifications()->count();
             $notifications = $user->notifications()
                 ->latest()
@@ -95,13 +98,14 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'profile_picture_url' => $user->profile_picture_url,
-                    'company_id' => $user->company_id,
-                    'preferred_branch_id' => $user->preferred_branch_id,
-                    'status' => $user->status,
-                    'roles' => $user->getRoleNames(),
-                    'permissions' => $user->getAllPermissions()->pluck('name'),
+                    'profile_picture_url' => $user instanceof User ? $user->profile_picture_url : null,
+                    'company_id' => $user instanceof User ? $user->company_id : null,
+                    'preferred_branch_id' => $user instanceof User ? $user->preferred_branch_id : null,
+                    'status' => $user instanceof User ? $user->status : 'active',
+                    'roles' => $user instanceof User ? $user->getRoleNames() : ['Platform Admin'],
+                    'permissions' => $user instanceof User ? $user->getAllPermissions()->pluck('name') : [],
                 ] : null,
+                'is_platform_admin' => $user instanceof PlatformAdmin,
             ],
             'company' => $company,
             'branch_context' => [
@@ -118,6 +122,10 @@ class HandleInertiaRequests extends Middleware
             'notifications' => [
                 'items' => $notifications,
                 'unread_count' => $unreadCount,
+            ],
+            'modules' => [
+                'enabled' => app(ModuleManager::class)->enabled(),
+                'nav' => app(ModuleManager::class)->enabledNavItems(),
             ],
         ];
     }

@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Console\Commands\ModuleInstall;
+use App\Console\Commands\ModuleList;
 use App\Models\User;
+use App\Services\ModuleManager;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(ModuleManager::class, fn () => new ModuleManager);
     }
 
     /**
@@ -34,5 +37,12 @@ class AppServiceProvider extends ServiceProvider
                 ]);
             }
         });
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                ModuleInstall::class,
+                ModuleList::class,
+            ]);
+        }
     }
 }

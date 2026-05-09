@@ -10,7 +10,9 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Settings\ApiKeyController;
 use App\Models\Company;
 use App\Models\User;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -90,12 +92,12 @@ Route::middleware(['auth'])->group(function () {
                 'logo' => ['nullable', 'image', 'max:5000'],
             ]);
 
-            $company = \App\Models\Company::findOrFail($companyId);
-            $company->fill(\Illuminate\Support\Arr::except($validated, ['logo']));
+            $company = Company::findOrFail($companyId);
+            $company->fill(Arr::except($validated, ['logo']));
 
             if (request()->hasFile('logo')) {
                 if ($company->logo_path) {
-                    \Illuminate\Support\Facades\Storage::disk('public')->delete($company->logo_path);
+                    Storage::disk('public')->delete($company->logo_path);
                 }
                 $company->logo_path = request()->file('logo')->store('logos', 'public');
             }
@@ -137,3 +139,14 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 });
+
+// ─── Optional Module Routes ──────────────────────────────────────────
+// Module routes are only loaded when the module is enabled.
+// Install a module with: php artisan module:install {name}
+foreach (array_filter(array_map('trim', explode(',', env('ENABLED_MODULES', '')))) as $module) {
+    $modulePath = __DIR__."/modules/{$module}.php";
+
+    if (file_exists($modulePath)) {
+        require $modulePath;
+    }
+}

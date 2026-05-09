@@ -42,8 +42,10 @@ export default function Header({ onToggleMobileMenu }) {
   const { items: notifications = [], unread_count: unreadCount = 0 } =
     props.notifications ?? {};
 
+  const isPlatformAdmin = props.auth?.is_platform_admin;
+
   const handleLogout = () => {
-    router.post('/logout');
+    router.post(isPlatformAdmin ? route('platform.logout') : '/logout');
   };
 
   const handleMarkRead = (id) => {
@@ -95,100 +97,104 @@ export default function Header({ onToggleMobileMenu }) {
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
-        {/* Branch switcher */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <span className="max-w-36 truncate">{activeBranchLabel}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64 z-[200]">
-            <DropdownMenuLabel>Branch Context</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem
-              checked={branchScopeMode === 'all'}
-              onCheckedChange={() => handleBranchSwitch('all')}
-            >
-              All My Branches
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuSeparator />
-            {branches.map((branch) => (
+        {/* Branch switcher - Hidden for Platform Admins */}
+        {!isPlatformAdmin && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span className="max-w-36 truncate">{activeBranchLabel}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 z-[200]">
+              <DropdownMenuLabel>Branch Context</DropdownMenuLabel>
+              <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem
-                key={branch.id}
-                checked={branchScopeMode === 'single' && currentBranch?.id === branch.id}
-                onCheckedChange={() => handleBranchSwitch('single', branch.id)}
+                checked={branchScopeMode === 'all'}
+                onCheckedChange={() => handleBranchSwitch('all')}
               >
-                {branch.name}
+                All My Branches
               </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Notifications dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-4 w-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center leading-none">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 z-[200]">
-            <div className="flex items-center justify-between px-3 py-2">
-              <span className="text-sm font-semibold">Notifications</span>
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllRead}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              <DropdownMenuSeparator />
+              {branches.map((branch) => (
+                <DropdownMenuCheckboxItem
+                  key={branch.id}
+                  checked={branchScopeMode === 'single' && currentBranch?.id === branch.id}
+                  onCheckedChange={() => handleBranchSwitch('single', branch.id)}
                 >
-                  <CheckCheck className="h-3 w-3" />
-                  Mark all read
-                </button>
-              )}
-            </div>
-            <DropdownMenuSeparator />
+                  {branch.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
-            {notifications.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                No notifications yet
+        {/* Notifications dropdown - Hide for Platform Admins if not implemented yet */}
+        {!isPlatformAdmin && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 z-[200]">
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-sm font-semibold">Notifications</span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <CheckCheck className="h-3 w-3" />
+                    Mark all read
+                  </button>
+                )}
               </div>
-            ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  onClick={() => !n.read_at && handleMarkRead(n.id)}
-                  className={`flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors ${!n.read_at ? 'bg-muted/30' : ''}`}
-                >
-                  <div className="mt-0.5 shrink-0">
-                    {typeIcon[n.data?.type] ?? typeIcon.info}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium leading-tight truncate">{n.data?.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.data?.message}</p>
-                    <p className="text-[10px] text-muted-foreground/70 mt-1">{n.created_at}</p>
-                  </div>
-                  {!n.read_at && (
-                    <span className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                  )}
-                </div>
-              ))
-            )}
+              <DropdownMenuSeparator />
 
-            <DropdownMenuSeparator />
-            <div className="p-1">
-              <Link
-                href="/notifications"
-                className="flex w-full items-center justify-center rounded-sm py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              >
-                View all notifications
-              </Link>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              {notifications.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  No notifications yet
+                </div>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => !n.read_at && handleMarkRead(n.id)}
+                    className={`flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors ${!n.read_at ? 'bg-muted/30' : ''}`}
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      {typeIcon[n.data?.type] ?? typeIcon.info}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-tight truncate">{n.data?.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.data?.message}</p>
+                      <p className="text-[10px] text-muted-foreground/70 mt-1">{n.created_at}</p>
+                    </div>
+                    {!n.read_at && (
+                      <span className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                    )}
+                  </div>
+                ))
+              )}
+
+              <DropdownMenuSeparator />
+              <div className="p-1">
+                <Link
+                  href="/notifications"
+                  className="flex w-full items-center justify-center rounded-sm py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  View all notifications
+                </Link>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         {/* Theme toggle */}
         <ThemeToggle />
@@ -213,13 +219,17 @@ export default function Header({ onToggleMobileMenu }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/settings"><User className="mr-2 h-4 w-4" /> Profile</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings"><Settings className="mr-2 h-4 w-4" /> Settings</Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {!isPlatformAdmin && (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings"><User className="mr-2 h-4 w-4" /> Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings"><Settings className="mr-2 h-4 w-4" /> Settings</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" /> Log out
             </DropdownMenuItem>

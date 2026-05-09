@@ -1,72 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
   LayoutDashboard, Users,
   Settings, BarChart, PanelLeft,
-  Shield, Bell, Building
+  Shield, Bell, Building, MonitorCog,
+  Building2, CreditCard, LayoutList, Settings2, Package,
 } from 'lucide-react';
 import { cn } from '@/Lib/utils';
 import { Button } from '@/Components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/Components/ui/accordion';
 import { AppLogo } from './app-logo';
 
-function resolveActiveModule(url) {
-  const found = navItems.find((item) =>
+import { TENANT_NAV_ITEMS } from '@/Config/tenant-navigation';
+import { PLATFORM_NAV_ITEMS } from '@/Config/platform-navigation';
+
+/** Map icon name strings (from config/modules.php) to Lucide components. */
+const ICON_MAP = {
+  LayoutDashboard, Users, Settings, BarChart, Shield, Bell, Building,
+  MonitorCog, Building2, CreditCard, LayoutList, Settings2, Package,
+};
+
+function resolveIcon(icon) {
+  if (!icon) { return LayoutDashboard; }
+  return ICON_MAP[icon] ?? LayoutDashboard;
+}
+
+function resolveActiveModule(url, items) {
+  const found = items.find((item) =>
     item.groups?.some((group) => group.links.some((link) => url.startsWith(link.href)))
   );
 
-  return found?.id ?? navItems[0].id;
+  return found?.id ?? items[0]?.id;
 }
 
-// ─── Navigation Config ──────────────────────────────────────────────
-export const navItems = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    groups: [
-      {
-        label: 'Overview',
-        links: [
-          { href: '/dashboard', label: 'Main Dashboard', icon: LayoutDashboard },
-        ]
-      },
-    ]
-  },
-  {
-    id: 'users',
-    label: 'Users',
-    icon: Users,
-    groups: [
-      {
-        label: 'Management',
-        links: [
-          { href: '/users', label: 'All Users', icon: Users },
-          { href: '/users/roles', label: 'Roles & Permissions', icon: Shield },
-        ]
-      },
-    ]
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    groups: [
-      {
-        label: 'Configuration',
-        links: [
-          { href: '/settings', label: 'General', icon: Settings },
-          { href: '/settings/api-keys', label: 'API Keys', icon: Shield },
-          { href: '/settings/company', label: 'Company', icon: Building },
-          { href: '/settings/branches', label: 'Branches', icon: Building },
-          { href: '/notifications', label: 'Notifications', icon: Bell },
-        ]
-      },
-    ]
-  },
-];
+/**
+ * Hydrate a raw nav item from the modules config (icons are serialized as strings)
+ * into a fully resolved item with Lucide icon components.
+ */
+function hydrateModuleNavItem(item) {
+  return {
+    ...item,
+    icon: resolveIcon(item.icon),
+    groups: (item.groups ?? []).map((group) => ({
+      ...group,
+      links: (group.links ?? []).map((link) => ({
+        ...link,
+        icon: resolveIcon(link.icon),
+      })),
+    })),
+  };
+}
 
-function SidebarNav({ activeModule, setActiveModule }) {
+function SidebarNav({ activeModule, setActiveModule, navItems }) {
   const { url } = usePage();
   return (
     <ul className="flex w-full min-w-0 flex-col gap-2">
@@ -103,7 +88,24 @@ function SidebarNav({ activeModule, setActiveModule }) {
 export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = () => {} }) {
   const { url, props } = usePage();
   const company = props.company;
-  const [activeModule, setActiveModule] = useState(() => resolveActiveModule(url));
+  const isPlatformAdmin = props.auth?.is_platform_admin;
+
+  // Merge base nav items with any enabled module nav items.
+  const navItems = useMemo(() => {
+    const baseNav = isPlatformAdmin ? PLATFORM_NAV_ITEMS : TENANT_NAV_ITEMS;
+    const hydratedBaseNav = baseNav.map(hydrateModuleNavItem);
+    
+    // Only merge non-platform modules if we are NOT a platform admin, 
+    // or if the module is specifically for the platform.
+    const moduleNavItems = (props.modules?.nav ?? [])
+      .map(hydrateModuleNavItem);
+      
+    // If we are platform admin, we only show platform-specific nav items.
+    // The PLATFORM_NAV_ITEMS already contains the core platform stuff.
+    return [...hydratedBaseNav, ...moduleNavItems.filter(m => isPlatformAdmin ? m.id.startsWith('platform') : !m.id.startsWith('platform'))];
+  }, [props.modules?.nav, isPlatformAdmin]);
+
+  const [activeModule, setActiveModule] = useState(() => resolveActiveModule(url, navItems));
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
 
   const appName = company?.name || import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -118,12 +120,12 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
   };
 
   React.useEffect(() => {
-    const moduleId = resolveActiveModule(url);
+    const moduleId = resolveActiveModule(url, navItems);
     setActiveModule(moduleId);
     setIsSecondaryCollapsed(false);
 
     onCloseMobileMenu();
-  }, [url, onCloseMobileMenu]);
+  }, [url, onCloseMobileMenu, navItems]);
 
   const activeNavItem = navItems.find((item) => item.id === activeModule);
 
@@ -151,7 +153,7 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
             <AppLogo showText={false} logoUrl={company?.logo_url} name={company?.name} />
           </div>
           <div className="flex-1 py-4 overflow-y-auto pb-20">
-            <SidebarNav activeModule={activeModule} setActiveModule={handleModuleClick} />
+            <SidebarNav activeModule={activeModule} setActiveModule={handleModuleClick} navItems={navItems} />
           </div>
           <div className="h-14 flex items-center justify-center border-t border-[#1E222B]">
             <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-extrabold border border-primary/20 overflow-hidden">
@@ -242,7 +244,9 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-bold text-white truncate">{appName}</p>
-                  <p className="text-[10px] text-gray-500 truncate uppercase tracking-widest font-medium">Platform</p>
+                  <p className="text-[10px] text-gray-500 truncate uppercase tracking-widest font-medium">
+                    {isPlatformAdmin ? 'Platform Admin' : 'Worksuite'}
+                  </p>
                 </div>
               </div>
             </div>

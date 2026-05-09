@@ -2,6 +2,7 @@
 
 namespace App\Actions\Branch;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ResolveBranchContext
@@ -21,7 +22,7 @@ class ResolveBranchContext
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (! $user || ! ($user instanceof User)) {
             return [
                 'mode' => self::MODE_SINGLE,
                 'current_branch_id' => null,
