@@ -46,12 +46,16 @@ class CreateNewUser implements CreatesNewUsers
             ['name' => 'Main Branch', 'code' => 'MAIN', 'status' => 'active', 'settings' => []]
         );
 
+        // Check if this is the first user in the company
+        $isFirstUser = User::query()->where('company_id', $company->id)->count() === 0;
+
         $user = User::create([
             'company_id' => $company->id,
             'preferred_branch_id' => $defaultBranch->id,
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
+            'role' => $isFirstUser ? 'Admin' : config('roles.default_role', 'Viewer'),
         ]);
 
         $user->branches()->syncWithoutDetaching([

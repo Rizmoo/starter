@@ -8,9 +8,6 @@ use App\Models\User;
 use App\Notifications\GeneralNotification;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 class DatabaseSeeder extends Seeder
 {
@@ -21,50 +18,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        $permissions = [
-            'users.view',
-            'users.create',
-            'users.update',
-            'users.delete',
-            'users.assign_roles',
-            'users.assign_permissions',
-            'roles.view',
-            'roles.create',
-            'roles.update',
-            'roles.delete',
-            'permissions.view',
-            'permissions.create',
-            'permissions.update',
-            'permissions.delete',
-            'audit_logs.view',
-        ];
-
-        foreach ($permissions as $permissionName) {
-            Permission::findOrCreate($permissionName, 'web');
-        }
-
-        $adminRole = Role::findOrCreate('Admin', 'web');
-        $managerRole = Role::findOrCreate('Manager', 'web');
-        $viewerRole = Role::findOrCreate('Viewer', 'web');
-
-        $adminRole->syncPermissions(Permission::query()->whereIn('name', $permissions)->where('guard_name', 'web')->get());
-        $managerRole->syncPermissions(Permission::query()->whereIn('name', [
-            'users.view',
-            'users.create',
-            'users.update',
-            'roles.view',
-            'permissions.view',
-            'audit_logs.view',
-        ])->where('guard_name', 'web')->get());
-        $viewerRole->syncPermissions(Permission::query()->whereIn('name', [
-            'users.view',
-            'roles.view',
-            'permissions.view',
-            'audit_logs.view',
-        ])->where('guard_name', 'web')->get());
-
         $company = Company::query()->firstOrCreate(
             ['slug' => 'default-company'],
             ['name' => 'Default Company', 'settings' => ['currency' => 'USD']]
@@ -84,22 +37,22 @@ class DatabaseSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'force_password_change' => false,
                 'status' => 'active',
+                'role' => 'Admin',
             ]
         );
 
-        if ($user->company_id !== $company->id || $user->preferred_branch_id !== $branch->id || $user->force_password_change) {
+        if ($user->company_id !== $company->id || $user->preferred_branch_id !== $branch->id || $user->force_password_change || ! $user->role) {
             $user->forceFill([
                 'company_id' => $company->id,
                 'preferred_branch_id' => $branch->id,
                 'force_password_change' => false,
+                'role' => 'Admin',
             ])->save();
         }
 
         $user->syncBranches([
             $branch->id => ['is_primary' => true],
         ]);
-
-        $user->syncRoles([$adminRole->id]);
 
         // Seed sample notifications
         $samples = [

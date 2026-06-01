@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\BranchContextController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Settings\ApiKeyController;
+use App\Http\Controllers\Settings\SessionController;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Support\Arr;
@@ -110,6 +111,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/settings/api-keys', [ApiKeyController::class, 'index'])->name('settings.api-keys');
         Route::post('/settings/api-keys', [ApiKeyController::class, 'store'])->name('settings.api-keys.store');
         Route::delete('/settings/api-keys/{tokenId}', [ApiKeyController::class, 'destroy'])->name('settings.api-keys.destroy');
+
+        // Session Management
+        Route::get('/settings/sessions', [SessionController::class, 'index'])->name('settings.sessions');
+        Route::delete('/settings/sessions/{sessionId}', [SessionController::class, 'destroy'])->name('settings.sessions.destroy');
+        Route::delete('/settings/sessions', [SessionController::class, 'destroyOthers'])->name('settings.sessions.destroy-others');
+
         Route::get('/settings/branches', function () {
             return Inertia::render('Settings/Branches');
         })->middleware(['role:Admin'])->name('settings.branches');

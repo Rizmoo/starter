@@ -12,11 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('phone_number')->nullable()->after('email');
-            $table->timestamp('phone_verified_at')->nullable()->after('phone_number');
-            $table->string('profile_picture_path')->nullable()->after('social_avatar');
+            $table->string('role')->nullable()->after('email');
         });
-
     }
 
     /**
@@ -25,8 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['phone_number', 'phone_verified_at', 'profile_picture_path']);
+            $table->dropColumn('role');
         });
-
     }
 };

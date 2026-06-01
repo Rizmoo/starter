@@ -52,8 +52,11 @@ class SocialAuthController extends Controller
                 ]);
             } else {
                 // Create new user
-                $company = Company::first();
-                $branch = Branch::where('company_id', '=', $company?->id)->first();
+                $company = Company::query()->first();
+                $branch = Branch::query()->where('company_id', $company?->id)->first();
+
+                // Check if this is the first user in the company
+                $isFirstUser = $company ? User::query()->where('company_id', $company->id)->count() === 0 : true;
 
                 $user = User::create([
                     'name' => $socialUser->getName() ?? $socialUser->getNickname() ?? 'Social User',
@@ -64,17 +67,13 @@ class SocialAuthController extends Controller
                     'company_id' => $company?->id,
                     'preferred_branch_id' => $branch?->id,
                     'status' => 'active',
+                    'role' => $isFirstUser ? 'Admin' : config('roles.default_role', 'Viewer'),
                 ]);
 
                 if ($branch) {
                     $user->syncBranches([
                         $branch->id => ['is_primary' => true],
                     ]);
-                }
-
-                // Assign a default role if Spatie's HasRoles trait is present
-                if (method_exists($user, 'assignRole')) {
-                    $user->assignRole('Viewer');
                 }
             }
         }

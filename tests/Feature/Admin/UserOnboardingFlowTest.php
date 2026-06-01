@@ -7,7 +7,6 @@ use App\Notifications\UserOnboardingNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class UserOnboardingFlowTest extends TestCase
@@ -18,18 +17,19 @@ class UserOnboardingFlowTest extends TestCase
     {
         Notification::fake();
 
-        Role::findOrCreate('Admin', 'web');
-
         $admin = User::factory()->create([
             'status' => 'active',
             'force_password_change' => false,
+            'role' => 'Admin',
         ]);
-        $admin->assignRole('Admin');
+
+        $branch = $admin->branches()->first();
 
         $response = $this->actingAs($admin)->postJson('/admin/users', [
             'name' => 'Onboarded User',
             'email' => 'onboarded@example.com',
             'status' => 'active',
+            'branch_ids' => [$branch->id],
         ]);
 
         $response->assertCreated();

@@ -2,92 +2,70 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Requests\Admin\StorePermissionRequest;
-use App\Http\Requests\Admin\UpdatePermissionRequest;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
-use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Spatie\Permission\Models\Permission;
+use Illuminate\Http\Request;
 
 class PermissionController extends Controller
 {
-    /**
-     * @var list<string>
-     */
-    private array $protectedPermissions = ['users.view'];
-
     public function index(Request $request): JsonResponse
     {
-        $permissions = Permission::query()
-            ->withCount(['roles', 'users'])
-            ->when($request->filled('search'), fn ($builder) => $builder->where('name', 'like', '%'.$request->string('search').'%'))
-            ->where('guard_name', 'web')
-            ->orderBy('name')
-            ->paginate((int) $request->integer('per_page', 30));
+        $permissions = collect(User::getAllPermissions())
+            ->map(function ($permission) {
+                return [
+                    'id' => $permission,
+                    'name' => $permission,
+                ];
+            })
+            ->when($request->filled('search'), function ($collection) use ($request) {
+                $search = strtolower((string) $request->string('search'));
 
-        return response()->json($permissions);
-    }
+                return $collection->filter(fn ($perm) => str_contains(strtolower($perm['name']), $search));
+            })
+            ->sortBy('name')
+            ->values();
 
-    public function store(StorePermissionRequest $request): JsonResponse
-    {
-        $permission = Permission::query()->create([
-            'name' => $request->validated('name'),
-            'guard_name' => 'web',
+        return response()->json([
+            'data' => $permissions,
+            'current_page' => 1,
+            'per_page' => $permissions->count(),
+            'total' => $permissions->count(),
         ]);
-
-        $this->logAudit($request, 'permissions.created', $permission, null, $permission->toArray());
-
-        return response()->json($permission, 201);
     }
 
-    public function show(Permission $permission): JsonResponse
+    public function show(string $permission): JsonResponse
     {
-        return response()->json(
-            $permission->loadCount(['roles', 'users'])
-        );
-    }
+        $allPermissions = User::getAllPermissions();
 
-    public function update(UpdatePermissionRequest $request, Permission $permission): JsonResponse
-    {
-        $before = $permission->toArray();
-
-        $permission->fill([
-            'name' => $request->validated('name', $permission->name),
-        ])->save();
-
-        $this->logAudit($request, 'permissions.updated', $permission, $before, $permission->toArray());
-
-        return response()->json($permission);
-    }
-
-    public function destroy(Request $request, Permission $permission): JsonResponse
-    {
-        if (in_array($permission->name, $this->protectedPermissions, true)) {
-            return response()->json([
-                'message' => 'This permission is protected and cannot be deleted.',
-            ], 422);
+        if (! in_array($permission, $allPermissions, true)) {
+            abort(404, 'Permission not found');
         }
 
-        $before = $permission->toArray();
-        $permission->delete();
-
-        $this->logAudit($request, 'permissions.deleted', $permission, $before, null);
-
-        return response()->json(status: 204);
+        return response()->json([
+            'id' => $permission,
+            'name' => $permission,
+        ]);
     }
 
-    private function logAudit(Request $request, string $action, Permission $subject, ?array $before, ?array $after): void
+    public function store(Request $request): JsonResponse
     {
-        AuditLog::query()->create([
-            'actor_id' => $request->user()?->id,
-            'action' => $action,
-            'auditable_type' => Permission::class,
-            'auditable_id' => $subject->id,
-            'before' => $before,
-            'after' => $after,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
+        return response()->json([
+            'message' => 'Permissions are now file-based. Please edit config/roles.php to add new permissions.',
+        ], 422);
+    }
+
+    public function update(Request $request, string $permission): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Permissions are now file-based. Please edit config/roles.php to modify permissions.',
+        ], 422);
+    }
+
+    public function destroy(Request $request, string $permission): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Permissions are now file-based. Please edit config/roles.php to remove permissions.',
+        ], 422);
     }
 }

@@ -2,114 +2,105 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Requests\Admin\StoreRoleRequest;
-use App\Http\Requests\Admin\UpdateRoleRequest;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
-use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
-use Spatie\Permission\Models\Role;
+use Illuminate\Http\Request;
 
 class RoleController extends Controller
 {
     /**
      * @var list<string>
      */
-    private array $protectedRoles = ['Admin'];
+    private array $protectedRoles;
+
+    public function __construct()
+    {
+        $this->protectedRoles = config('roles.protected_roles', ['Admin']);
+    }
 
     public function index(Request $request): JsonResponse
     {
-        $roles = Role::query()
-            ->with('permissions:id,name')
-            ->withCount(['users', 'permissions'])
-            ->when($request->filled('search'), fn ($builder) => $builder->where('name', 'like', '%'.$request->string('search').'%'))
-            ->where('guard_name', 'web')
-            ->orderBy('name')
-            ->paginate((int) $request->integer('per_page', 20));
+        $roles = collect(config('roles.roles', []))
+            ->map(function ($roleData, $roleName) use ($request) {
+                $usersCount = User::query()
+                    ->where('role', $roleName)
+                    ->when($request->user()?->company_id, fn ($q) => $q->where('company_id', $request->user()->company_id))
+                    ->count();
 
-        return response()->json($roles);
+                return [
+                    'id' => $roleName,
+                    'name' => $roleName,
+                    'label' => $roleData['label'] ?? $roleName,
+                    'description' => $roleData['description'] ?? null,
+                    'permissions' => collect($roleData['permissions'] ?? [])->map(fn ($permission) => [
+                        'id' => $permission,
+                        'name' => $permission,
+                    ])->values(),
+                    'users_count' => $usersCount,
+                    'permissions_count' => count($roleData['permissions'] ?? []),
+                ];
+            })
+            ->when($request->filled('search'), function ($collection) use ($request) {
+                $search = strtolower((string) $request->string('search'));
+
+                return $collection->filter(fn ($role) => str_contains(strtolower($role['name']), $search) ||
+                    str_contains(strtolower($role['label']), $search));
+            })
+            ->sortBy('name')
+            ->values();
+
+        return response()->json([
+            'data' => $roles,
+            'current_page' => 1,
+            'per_page' => $roles->count(),
+            'total' => $roles->count(),
+        ]);
     }
 
-    public function store(StoreRoleRequest $request): JsonResponse
+    public function show(string $role): JsonResponse
     {
-        $validated = $request->validated();
+        $roles = config('roles.roles', []);
 
-        $role = DB::transaction(function () use ($validated): Role {
-            $role = Role::query()->create([
-                'name' => $validated['name'],
-                'guard_name' => 'web',
-            ]);
-
-            if (isset($validated['permission_ids'])) {
-                $role->syncPermissions($validated['permission_ids']);
-            }
-
-            return $role->load('permissions:id,name');
-        });
-
-        $this->logAudit($request, 'roles.created', $role, null, $role->toArray());
-
-        return response()->json($role, 201);
-    }
-
-    public function show(Role $role): JsonResponse
-    {
-        return response()->json(
-            $role->load('permissions:id,name')->loadCount(['users', 'permissions'])
-        );
-    }
-
-    public function update(UpdateRoleRequest $request, Role $role): JsonResponse
-    {
-        $validated = $request->validated();
-        $before = $role->load('permissions:id,name')->toArray();
-
-        $updatedRole = DB::transaction(function () use ($validated, $role): Role {
-            if (isset($validated['name'])) {
-                $role->name = $validated['name'];
-                $role->save();
-            }
-
-            if (isset($validated['permission_ids'])) {
-                $role->syncPermissions($validated['permission_ids']);
-            }
-
-            return $role->load('permissions:id,name');
-        });
-
-        $this->logAudit($request, 'roles.updated', $updatedRole, $before, $updatedRole->toArray());
-
-        return response()->json($updatedRole);
-    }
-
-    public function destroy(Request $request, Role $role): JsonResponse
-    {
-        if (in_array($role->name, $this->protectedRoles, true)) {
-            return response()->json([
-                'message' => 'This role is protected and cannot be deleted.',
-            ], 422);
+        if (! isset($roles[$role])) {
+            abort(404, 'Role not found');
         }
 
-        $before = $role->toArray();
-        $role->delete();
+        $roleData = $roles[$role];
+        $usersCount = User::query()->where('role', $role)->count();
 
-        $this->logAudit($request, 'roles.deleted', $role, $before, null);
-
-        return response()->json(status: 204);
+        return response()->json([
+            'id' => $role,
+            'name' => $role,
+            'label' => $roleData['label'] ?? $role,
+            'description' => $roleData['description'] ?? null,
+            'permissions' => collect($roleData['permissions'] ?? [])->map(fn ($permission) => [
+                'id' => $permission,
+                'name' => $permission,
+            ])->values(),
+            'users_count' => $usersCount,
+            'permissions_count' => count($roleData['permissions'] ?? []),
+        ]);
     }
 
-    private function logAudit(Request $request, string $action, Role $subject, ?array $before, ?array $after): void
+    public function store(Request $request): JsonResponse
     {
-        AuditLog::query()->create([
-            'actor_id' => $request->user()?->id,
-            'action' => $action,
-            'auditable_type' => Role::class,
-            'auditable_id' => $subject->id,
-            'before' => $before,
-            'after' => $after,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
+        return response()->json([
+            'message' => 'Roles are now file-based. Please edit config/roles.php to add new roles.',
+        ], 422);
+    }
+
+    public function update(Request $request, string $role): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Roles are now file-based. Please edit config/roles.php to modify roles.',
+        ], 422);
+    }
+
+    public function destroy(Request $request, string $role): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Roles are now file-based. Please edit config/roles.php to remove roles.',
+        ], 422);
     }
 }

@@ -25,10 +25,10 @@ class GeneralNotification extends Notification
     public function toDatabase(object $notifiable): array
     {
         return [
-            'title'        => $this->title,
-            'message'      => $this->message,
-            'type'         => $this->type,  // info | success | warning | error
-            'action_url'   => $this->actionUrl,
+            'title' => $this->title,
+            'message' => $this->message,
+            'type' => $this->type,  // info | success | warning | error
+            'action_url' => $this->actionUrl,
             'action_label' => $this->actionLabel,
         ];
     }

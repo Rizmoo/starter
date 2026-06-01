@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Traits\HasFileBasedRoles;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -15,14 +16,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
-use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['company_id', 'preferred_branch_id', 'name', 'email', 'phone_number', 'phone_verified_at', 'password', 'force_password_change', 'status', 'suspended_at', 'suspended_reason', 'last_login_at', 'social_id', 'social_provider', 'social_avatar', 'profile_picture_path'])]
+#[Fillable(['company_id', 'preferred_branch_id', 'name', 'email', 'role', 'phone_number', 'phone_verified_at', 'password', 'force_password_change', 'status', 'suspended_at', 'suspended_reason', 'last_login_at', 'social_id', 'social_provider', 'social_avatar', 'profile_picture_path'])]
 #[Hidden(['password', 'remember_token', 'two_factor_recovery_codes', 'two_factor_secret'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasFileBasedRoles, Notifiable, TwoFactorAuthenticatable;
 
     protected $appends = ['profile_picture_url'];
 

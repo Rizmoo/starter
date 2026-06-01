@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Com
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { useToast } from '@/Hooks/use-toast';
-import { Loader2, Shield, User, Lock, QrCode, KeyRound } from 'lucide-react';
+import { Loader2, Shield, User, Lock, QrCode, KeyRound, MonitorCheck } from 'lucide-react';
+import SessionManagement from '@/Components/Settings/SessionManagement';
 
 export default function Settings({ twoFactorEnabled, qrCode, recoveryCodes }) {
   const { auth } = usePage().props;
@@ -184,15 +186,32 @@ export default function Settings({ twoFactorEnabled, qrCode, recoveryCodes }) {
     <DashboardLayout>
       <Head title="Settings" />
       <div className="space-y-6 max-w-6xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your account settings and security preferences.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your account settings and security preferences.
+            </p>
+          </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="2fa" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Two-Factor Auth
+            </TabsTrigger>
+            <TabsTrigger value="sessions" className="flex items-center gap-2">
+              <MonitorCheck className="h-4 w-4" />
+              Sessions
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="profile" className="space-y-6">
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -309,9 +328,9 @@ export default function Settings({ twoFactorEnabled, qrCode, recoveryCodes }) {
                 </form>
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          <div className="space-y-6">
+          <TabsContent value="2fa" className="space-y-6">
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -415,8 +434,12 @@ export default function Settings({ twoFactorEnabled, qrCode, recoveryCodes }) {
                 )}
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="sessions">
+            <SessionManagement />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

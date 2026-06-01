@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -28,7 +29,7 @@ class UserController extends Controller
         $context = $this->resolveBranchContext->resolve($request);
 
         $query = User::query()
-            ->with(['roles:id,name', 'permissions:id,name', 'branches:id,name'])
+            ->with(['branches:id,name'])
             ->where('company_id', $request->user()?->company_id)
             ->whereHas('branches', fn ($builder) => $builder->whereIn('branches.id', $context['visible_branch_ids']))
             ->when($request->filled('search'), function ($builder) use ($request) {
@@ -67,6 +68,7 @@ class UserController extends Controller
                 'password' => $validated['password'] ?? $temporaryPassword,
                 'force_password_change' => true,
                 'status' => $validated['status'] ?? 'active',
+                'role' => $validated['role'] ?? config('roles.default_role', 'Viewer'),
             ]);
 
             if ($request->hasFile('profile_picture')) {
@@ -83,15 +85,7 @@ class UserController extends Controller
                 ])->save();
             }
 
-            if (isset($validated['role_ids'])) {
-                $user->syncRoles(array_map('intval', (array) $validated['role_ids']));
-            }
-
-            if (isset($validated['permission_ids'])) {
-                $user->syncPermissions(array_map('intval', (array) $validated['permission_ids']));
-            }
-
-            return [$user->load(['roles:id,name', 'permissions:id,name', 'branches:id,name']), $temporaryPassword];
+            return [$user->load(['branches:id,name']), $temporaryPassword];
         });
 
         $user->notify(new UserOnboardingNotification($temporaryPassword));
@@ -105,7 +99,7 @@ class UserController extends Controller
     {
         $this->ensureUserIsVisibleInScope(request(), $user);
 
-        return response()->json($user->load(['roles:id,name', 'permissions:id,name', 'branches:id,name']));
+        return response()->json($user->load(['branches:id,name']));
     }
 
     public function logs(Request $request, User $user): JsonResponse
@@ -180,14 +174,14 @@ class UserController extends Controller
 
         $validated = $request->validated();
         $context = $this->resolveBranchContext->resolve($request);
-        $before = $user->load(['roles:id,name', 'permissions:id,name', 'branches:id,name'])->toArray();
+        $before = $user->load(['branches:id,name'])->toArray();
 
         $updatedUser = DB::transaction(function () use ($validated, $user, $context, $request): User {
-            $user->fill(Arr::only($validated, ['name', 'email', 'password', 'phone_number']));
+            $user->fill(Arr::only($validated, ['name', 'email', 'password', 'phone_number', 'role']));
 
             if ($request->hasFile('profile_picture')) {
                 if ($user->profile_picture_path) {
-                    \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_picture_path);
+                    Storage::disk('public')->delete($user->profile_picture_path);
                 }
                 $user->profile_picture_path = $request->file('profile_picture')->store('profiles', 'public');
             }
@@ -210,14 +204,6 @@ class UserController extends Controller
 
             $user->save();
 
-            if (isset($validated['role_ids'])) {
-                $user->syncRoles(array_map('intval', (array) $validated['role_ids']));
-            }
-
-            if (isset($validated['permission_ids'])) {
-                $user->syncPermissions(array_map('intval', (array) $validated['permission_ids']));
-            }
-
             if (array_key_exists('branch_ids', $validated)) {
                 $branchIds = $this->normalizeBranchIds($request, $validated['branch_ids'], $context);
                 $user->syncBranches($branchIds);
@@ -230,7 +216,7 @@ class UserController extends Controller
                 }
             }
 
-            return $user->load(['roles:id,name', 'permissions:id,name', 'branches:id,name']);
+            return $user->load(['branches:id,name']);
         });
 
         $this->logAudit($request, 'users.updated', $updatedUser, $before, $updatedUser->toArray());
