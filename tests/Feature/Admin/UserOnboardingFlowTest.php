@@ -23,13 +23,10 @@ class UserOnboardingFlowTest extends TestCase
             'role' => 'Admin',
         ]);
 
-        $branch = $admin->branches()->first();
-
         $response = $this->actingAs($admin)->postJson('/admin/users', [
             'name' => 'Onboarded User',
             'email' => 'onboarded@example.com',
             'status' => 'active',
-            'branch_ids' => [$branch->id],
         ]);
 
         $response->assertCreated();

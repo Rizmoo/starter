@@ -28,9 +28,6 @@ return [
                 'create users',
                 'edit users',
 
-                // Branch Management
-                'view branches',
-
                 // Audit Logs
                 'view audit logs',
 
@@ -45,7 +42,6 @@ return [
             'description' => 'Standard staff access',
             'permissions' => [
                 'view users',
-                'view branches',
                 'view notifications',
             ],
         ],
@@ -55,7 +51,6 @@ return [
             'description' => 'Read-only access',
             'permissions' => [
                 'view users',
-                'view branches',
                 'view notifications',
             ],
         ],
@@ -67,7 +62,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | This role will be assigned to users when they register (if they are
-    | the first user in their company, they get Admin role instead).
+    | the first user in the application, they get Admin role instead).
     |
     */
 

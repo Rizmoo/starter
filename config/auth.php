@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\PlatformAdmin;
 use App\Models\User;
 
 return [
@@ -43,11 +42,6 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
-
-        'platform' => [
-            'driver' => 'session',
-            'provider' => 'platform_admins',
-        ],
     ],
 
     /*
@@ -55,7 +49,7 @@ return [
     | User Providers
     |--------------------------------------------------------------------------
     |
-    | All authentication guards have a user provider, which defines how the
+    | All authentication guards have a user provider. This defines how the
     | users are actually retrieved out of your database or other storage
     | system used by the application. Typically, Eloquent is utilized.
     |
@@ -71,11 +65,6 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
-        ],
-
-        'platform_admins' => [
-            'driver' => 'eloquent',
-            'model' => PlatformAdmin::class,
         ],
 
         // 'users' => [

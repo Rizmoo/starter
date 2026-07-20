@@ -22,10 +22,9 @@ class RoleController extends Controller
     public function index(Request $request): JsonResponse
     {
         $roles = collect(config('roles.roles', []))
-            ->map(function ($roleData, $roleName) use ($request) {
+            ->map(function ($roleData, $roleName) {
                 $usersCount = User::query()
                     ->where('role', $roleName)
-                    ->when($request->user()?->company_id, fn ($q) => $q->where('company_id', $request->user()->company_id))
                     ->count();
 
                 return [

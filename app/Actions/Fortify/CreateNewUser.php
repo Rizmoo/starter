@@ -2,8 +2,6 @@
 
 namespace App\Actions\Fortify;
 
-use App\Models\Branch;
-use App\Models\Company;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -36,32 +34,13 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        $company = Company::query()->firstOrCreate(
-            ['slug' => 'default-company'],
-            ['name' => 'Default Company', 'settings' => ['currency' => 'USD']]
-        );
+        $isFirstUser = User::query()->count() === 0;
 
-        $defaultBranch = Branch::query()->firstOrCreate(
-            ['company_id' => $company->id, 'slug' => 'main-branch'],
-            ['name' => 'Main Branch', 'code' => 'MAIN', 'status' => 'active', 'settings' => []]
-        );
-
-        // Check if this is the first user in the company
-        $isFirstUser = User::query()->where('company_id', $company->id)->count() === 0;
-
-        $user = User::create([
-            'company_id' => $company->id,
-            'preferred_branch_id' => $defaultBranch->id,
+        return User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
             'role' => $isFirstUser ? 'Admin' : config('roles.default_role', 'Viewer'),
         ]);
-
-        $user->branches()->syncWithoutDetaching([
-            $defaultBranch->id => ['is_primary' => true],
-        ]);
-
-        return $user;
     }
 }

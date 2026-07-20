@@ -11,7 +11,6 @@ import { DataTableColumnHeader } from '@/Components/ui/data-table-column-header'
 import { 
   User, 
   Mail, 
-  MapPin, 
   Shield, 
   Clock, 
   AlertTriangle, 
@@ -23,7 +22,6 @@ import {
   ChevronRight,
   Activity,
   Calendar,
-  Globe,
   Eye,
   Info,
   History,
@@ -64,7 +62,6 @@ export default function UserShowPage({ id }) {
   const { toast } = useToast();
   const [user, setUser] = useState(null);
   const [roles, setRoles] = useState([]);
-  const [branches, setBranches] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -127,12 +124,8 @@ export default function UserShowPage({ id }) {
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [rolesResponse, branchesResponse] = await Promise.all([
-          window.axios.get('/admin/roles', { params: { per_page: 100 } }),
-          window.axios.get('/admin/branches', { params: { per_page: 200, status: 'active' } }),
-        ]);
+        const rolesResponse = await window.axios.get('/admin/roles', { params: { per_page: 100 } });
         setRoles(rolesResponse.data?.data || []);
-        setBranches(branchesResponse.data?.data || []);
       } catch {
         // Silently fail for options
       }
@@ -213,11 +206,6 @@ export default function UserShowPage({ id }) {
           </div>
         );
       },
-    },
-    {
-      accessorKey: 'branch',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Branch" />,
-      cell: ({ row }) => row.original.branch?.name || '-',
     },
     {
       id: 'actions',
@@ -340,7 +328,7 @@ export default function UserShowPage({ id }) {
             </div>
 
             <div className="bg-background/50 backdrop-blur-sm border px-6 py-8 rounded-2xl flex flex-col justify-center items-center min-w-[180px] shadow-sm">
-               <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Company Access</div>
+               <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Account Access</div>
                <div className="text-2xl font-black text-primary">Active</div>
                <div className="mt-4 flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase">
                  <Shield className="h-3 w-3" /> Secure Connection
@@ -369,27 +357,29 @@ export default function UserShowPage({ id }) {
                 <Card className="border-none shadow-md overflow-hidden bg-card/50 backdrop-blur-sm ring-1 ring-border">
                   <CardHeader className="border-b bg-muted/30 pb-4">
                     <div className="flex items-center gap-2">
-                      <Globe className="h-5 w-5 text-primary" />
-                      <CardTitle>Regional Distribution</CardTitle>
+                      <Shield className="h-5 w-5 text-primary" />
+                      <CardTitle>Account Details</CardTitle>
                     </div>
-                    <CardDescription>Managed branches and primary office locations.</CardDescription>
+                    <CardDescription>Core profile and access information.</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {user.branches && user.branches.map(branch => (
-                        <div key={branch.id} className="flex items-center gap-4 p-4 rounded-xl border bg-background/50 hover:bg-background hover:shadow-sm transition-all group">
-                          <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center text-primary border border-primary/10 group-hover:scale-110 transition-transform">
-                            <MapPin className="h-6 w-6" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-bold">{branch.name}</div>
-                            <div className="text-xs text-muted-foreground font-medium">Branch ID: #{branch.id.toString().padStart(4, '0')}</div>
-                          </div>
-                          {branch.pivot?.is_primary && (
-                            <Badge variant="secondary" className="text-[10px] uppercase font-black tracking-tighter bg-amber-500/10 text-amber-600 border-amber-500/20">Primary</Badge>
-                          )}
-                        </div>
-                      ))}
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</div>
+                        <div className="text-sm font-semibold">{user.email}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Role</div>
+                        <div className="text-sm font-semibold">{user.role || user.roles?.[0]?.name || '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</div>
+                        <div className="text-sm font-semibold capitalize">{user.status || '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</div>
+                        <div className="text-sm font-semibold">{user.phone_number || '—'}</div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -586,7 +576,6 @@ export default function UserShowPage({ id }) {
           mode="edit"
           user={user}
           roles={roles}
-          branches={branches}
           onSaved={loadUser}
         />
 

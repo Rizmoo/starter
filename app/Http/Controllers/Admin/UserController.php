@@ -2,13 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Actions\Branch\ResolveBranchContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\AuditLog;
-use App\Models\Branch;
-use App\Models\Company;
 use App\Models\User;
 use App\Notifications\UserOnboardingNotification;
 use Illuminate\Http\JsonResponse;
@@ -18,20 +15,14 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
 {
-    public function __construct(private readonly ResolveBranchContext $resolveBranchContext) {}
-
     public function index(Request $request): JsonResponse
     {
-        $context = $this->resolveBranchContext->resolve($request);
-
         $query = User::query()
-            ->with(['branches:id,name'])
-            ->where('company_id', $request->user()?->company_id)
-            ->whereHas('branches', fn ($builder) => $builder->whereIn('branches.id', $context['visible_branch_ids']))
             ->when($request->filled('search'), function ($builder) use ($request) {
                 $search = (string) $request->string('search');
 
@@ -51,17 +42,13 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $context = $this->resolveBranchContext->resolve($request);
-        $companyId = $request->user()?->company_id ?? Company::query()->value('id');
-        $branchIds = $this->normalizeBranchIds($request, $validated['branch_ids'] ?? null, $context);
 
-        [$user, $temporaryPassword] = DB::transaction(function () use ($validated, $companyId, $branchIds, $request): array {
+        [$user, $temporaryPassword] = DB::transaction(function () use ($validated, $request): array {
             $temporaryPassword = blank($validated['password'] ?? null)
                 ? Str::password(14)
                 : null;
 
             $user = User::query()->create([
-                'company_id' => $companyId,
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'phone_number' => $validated['phone_number'] ?? null,
@@ -76,16 +63,7 @@ class UserController extends Controller
                 $user->save();
             }
 
-            $user->syncBranches($branchIds);
-
-            $primaryBranchId = array_key_first($branchIds);
-            if ($primaryBranchId !== null) {
-                $user->forceFill([
-                    'preferred_branch_id' => $primaryBranchId,
-                ])->save();
-            }
-
-            return [$user->load(['branches:id,name']), $temporaryPassword];
+            return [$user, $temporaryPassword];
         });
 
         $user->notify(new UserOnboardingNotification($temporaryPassword));
@@ -97,17 +75,13 @@ class UserController extends Controller
 
     public function show(User $user): JsonResponse
     {
-        $this->ensureUserIsVisibleInScope(request(), $user);
-
-        return response()->json($user->load(['branches:id,name']));
+        return response()->json($user);
     }
 
     public function logs(Request $request, User $user): JsonResponse
     {
-        $this->ensureUserIsVisibleInScope($request, $user);
-
         $logs = AuditLog::query()
-            ->with(['actor:id,name', 'branch:id,name'])
+            ->with(['actor:id,name'])
             ->where(function ($query) use ($user) {
                 $query->where('actor_id', $user->id)
                     ->orWhere(function ($nested) use ($user) {
@@ -129,10 +103,8 @@ class UserController extends Controller
 
     public function exportLogs(Request $request, User $user): StreamedResponse
     {
-        $this->ensureUserIsVisibleInScope($request, $user);
-
         $logs = AuditLog::query()
-            ->with(['actor:id,name', 'branch:id,name'])
+            ->with(['actor:id,name'])
             ->where(function ($query) use ($user) {
                 $query->where('actor_id', $user->id)
                     ->orWhere(function ($nested) use ($user) {
@@ -150,7 +122,7 @@ class UserController extends Controller
 
         return response()->stream(function () use ($logs) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['ID', 'Timestamp (UTC)', 'Action', 'Actor', 'Branch', 'IP Address', 'User Agent']);
+            fputcsv($file, ['ID', 'Timestamp (UTC)', 'Action', 'Actor', 'IP Address', 'User Agent']);
 
             foreach ($logs as $log) {
                 fputcsv($file, [
@@ -158,7 +130,6 @@ class UserController extends Controller
                     $log->created_at->toDateTimeString(),
                     $log->action,
                     $log->actor->name ?? 'System',
-                    $log->branch->name ?? 'N/A',
                     $log->ip_address,
                     $log->user_agent,
                 ]);
@@ -170,13 +141,10 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
-        $this->ensureUserIsVisibleInScope($request, $user);
-
         $validated = $request->validated();
-        $context = $this->resolveBranchContext->resolve($request);
-        $before = $user->load(['branches:id,name'])->toArray();
+        $before = $user->toArray();
 
-        $updatedUser = DB::transaction(function () use ($validated, $user, $context, $request): User {
+        $updatedUser = DB::transaction(function () use ($validated, $user, $request): User {
             $user->fill(Arr::only($validated, ['name', 'email', 'password', 'phone_number', 'role']));
 
             if ($request->hasFile('profile_picture')) {
@@ -204,19 +172,7 @@ class UserController extends Controller
 
             $user->save();
 
-            if (array_key_exists('branch_ids', $validated)) {
-                $branchIds = $this->normalizeBranchIds($request, $validated['branch_ids'], $context);
-                $user->syncBranches($branchIds);
-
-                $primaryBranchId = array_key_first($branchIds);
-                if ($primaryBranchId !== null) {
-                    $user->forceFill([
-                        'preferred_branch_id' => $primaryBranchId,
-                    ])->save();
-                }
-            }
-
-            return $user->load(['branches:id,name']);
+            return $user;
         });
 
         $this->logAudit($request, 'users.updated', $updatedUser, $before, $updatedUser->toArray());
@@ -226,8 +182,6 @@ class UserController extends Controller
 
     public function destroy(Request $request, User $user): JsonResponse
     {
-        $this->ensureUserIsVisibleInScope($request, $user);
-
         if ($request->user()?->id === $user->id) {
             return response()->json([
                 'message' => 'You cannot delete your own account.',
@@ -244,8 +198,6 @@ class UserController extends Controller
 
     public function activate(Request $request, User $user): JsonResponse
     {
-        $this->ensureUserIsVisibleInScope($request, $user);
-
         $before = $user->toArray();
 
         $user->forceFill([
@@ -256,13 +208,11 @@ class UserController extends Controller
 
         $this->logAudit($request, 'users.activated', $user, $before, $user->toArray());
 
-        return response()->json($user->fresh(['roles:id,name', 'permissions:id,name', 'branches:id,name']));
+        return response()->json($user->fresh());
     }
 
     public function suspend(Request $request, User $user): JsonResponse
     {
-        $this->ensureUserIsVisibleInScope($request, $user);
-
         $validated = $request->validate([
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -277,53 +227,34 @@ class UserController extends Controller
 
         $this->logAudit($request, 'users.suspended', $user, $before, $user->toArray());
 
-        return response()->json($user->fresh(['roles:id,name', 'permissions:id,name', 'branches:id,name']));
+        return response()->json($user->fresh());
     }
 
     public function syncRoles(Request $request, User $user): JsonResponse
     {
-        $this->ensureUserIsVisibleInScope($request, $user);
-
         $validated = $request->validate([
-            'role_ids' => ['required', 'array'],
-            'role_ids.*' => ['required', 'integer', 'exists:roles,id'],
+            'role' => ['required', 'string', Rule::in(array_keys(config('roles.roles', [])))],
         ]);
 
-        $before = $user->roles()->pluck('id')->all();
-        $user->syncRoles($validated['role_ids']);
+        $before = ['role' => $user->role];
+        $user->syncRoles($validated['role']);
 
         $this->logAudit(
             $request,
             'users.roles_synced',
             $user,
-            ['role_ids' => $before],
-            ['role_ids' => $user->roles()->pluck('id')->all()]
+            $before,
+            ['role' => $user->role]
         );
 
-        return response()->json($user->fresh(['roles:id,name', 'permissions:id,name', 'branches:id,name']));
+        return response()->json($user->fresh());
     }
 
     public function syncPermissions(Request $request, User $user): JsonResponse
     {
-        $this->ensureUserIsVisibleInScope($request, $user);
-
-        $validated = $request->validate([
-            'permission_ids' => ['required', 'array'],
-            'permission_ids.*' => ['required', 'integer', 'exists:permissions,id'],
-        ]);
-
-        $before = $user->permissions()->pluck('id')->all();
-        $user->syncPermissions($validated['permission_ids']);
-
-        $this->logAudit(
-            $request,
-            'users.permissions_synced',
-            $user,
-            ['permission_ids' => $before],
-            ['permission_ids' => $user->permissions()->pluck('id')->all()]
-        );
-
-        return response()->json($user->fresh(['roles:id,name', 'permissions:id,name', 'branches:id,name']));
+        return response()->json([
+            'message' => 'Permissions are role-based. Assign a role instead.',
+        ], 422);
     }
 
     public function bulkForcePasswordChange(Request $request): JsonResponse
@@ -333,13 +264,8 @@ class UserController extends Controller
             'user_ids.*' => ['required', 'exists:users,id'],
         ]);
 
-        $context = $this->resolveBranchContext->resolve($request);
-        $currentCompanyId = $request->user()?->company_id;
-
         $users = User::query()
             ->whereIn('id', $validated['user_ids'])
-            ->where('company_id', $currentCompanyId)
-            ->whereHas('branches', fn ($builder) => $builder->whereIn('branches.id', $context['visible_branch_ids']))
             ->get();
 
         foreach ($users as $user) {
@@ -352,11 +278,8 @@ class UserController extends Controller
 
     private function logAudit(Request $request, string $action, User $subject, ?array $before, ?array $after): void
     {
-        $context = $this->resolveBranchContext->resolve($request);
-
         AuditLog::query()->create([
             'actor_id' => $request->user()?->id,
-            'branch_id' => $context['current_branch_id'],
             'action' => $action,
             'auditable_type' => User::class,
             'auditable_id' => $subject->id,
@@ -365,51 +288,5 @@ class UserController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
-    }
-
-    /**
-     * @param  array<int, int>|null  $requestedBranchIds
-     * @param  array{allowed_branch_ids: array<int, int>, current_branch_id: int|null}  $context
-     * @return array<int, array{is_primary: bool}>
-     */
-    private function normalizeBranchIds(Request $request, ?array $requestedBranchIds, array $context): array
-    {
-        $companyBranchIds = Branch::query()
-            ->where('company_id', $request->user()?->company_id)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        $requested = $requestedBranchIds === null || $requestedBranchIds === []
-            ? ($context['current_branch_id'] ? [$context['current_branch_id']] : $companyBranchIds)
-            : array_map('intval', $requestedBranchIds);
-
-        $requested = array_values(array_unique($requested));
-        $filtered = array_values(array_filter($requested, fn ($branchId) => in_array($branchId, $companyBranchIds, true)));
-
-        if ($filtered === []) {
-            $fallbackId = $context['current_branch_id'] ?? ($companyBranchIds[0] ?? Branch::query()->value('id'));
-            $filtered = $fallbackId ? [(int) $fallbackId] : [];
-        }
-
-        return collect($filtered)
-            ->values()
-            ->mapWithKeys(fn ($branchId, $index) => [
-                $branchId => ['is_primary' => $index === 0],
-            ])
-            ->all();
-    }
-
-    private function ensureUserIsVisibleInScope(Request $request, User $user): void
-    {
-        $context = $this->resolveBranchContext->resolve($request);
-        $currentCompanyId = $request->user()?->company_id;
-
-        $isVisible = $user->company_id === $currentCompanyId
-            && $user->branches()
-                ->whereIn('branches.id', $context['visible_branch_ids'])
-                ->exists();
-
-        abort_unless($isVisible, 404);
     }
 }

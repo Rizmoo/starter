@@ -3,21 +3,16 @@ import { Link, usePage } from '@inertiajs/react';
 import {
   LayoutDashboard, Users,
   Settings, BarChart, PanelLeft,
-  Shield, Bell, Building, MonitorCog,
-  Building2, CreditCard, LayoutList, Settings2, Package,
+  Shield, Bell,
 } from 'lucide-react';
 import { cn } from '@/Lib/utils';
 import { Button } from '@/Components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/Components/ui/accordion';
 import { AppLogo } from './app-logo';
+import { NAV_ITEMS } from '@/Config/navigation';
 
-import { TENANT_NAV_ITEMS } from '@/Config/tenant-navigation';
-import { PLATFORM_NAV_ITEMS } from '@/Config/platform-navigation';
-
-/** Map icon name strings (from config/modules.php) to Lucide components. */
 const ICON_MAP = {
-  LayoutDashboard, Users, Settings, BarChart, Shield, Bell, Building,
-  MonitorCog, Building2, CreditCard, LayoutList, Settings2, Package,
+  LayoutDashboard, Users, Settings, BarChart, Shield, Bell,
 };
 
 function resolveIcon(icon) {
@@ -33,11 +28,7 @@ function resolveActiveModule(url, items) {
   return found?.id ?? items[0]?.id;
 }
 
-/**
- * Hydrate a raw nav item from the modules config (icons are serialized as strings)
- * into a fully resolved item with Lucide icon components.
- */
-function hydrateModuleNavItem(item) {
+function hydrateNavItem(item) {
   return {
     ...item,
     icon: resolveIcon(item.icon),
@@ -68,7 +59,7 @@ function SidebarNav({ activeModule, setActiveModule, navItems }) {
               onClick={() => setActiveModule(item.id)}
               className={cn(
                 "h-10 w-10 mx-auto flex items-center justify-center rounded-lg transition-all duration-200",
-                isActive 
+                isActive
                   ? "bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.1),0_6px_18px_rgba(0,0,0,0.4)]"
                   : "text-[#7f8ba1] hover:text-[#d3d9e4] hover:bg-[#141d2c]"
               )}
@@ -86,29 +77,14 @@ function SidebarNav({ activeModule, setActiveModule, navItems }) {
 }
 
 export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = () => {} }) {
-  const { url, props } = usePage();
-  const company = props.company;
-  const isPlatformAdmin = props.auth?.is_platform_admin;
+  const { url } = usePage();
 
-  // Merge base nav items with any enabled module nav items.
-  const navItems = useMemo(() => {
-    const baseNav = isPlatformAdmin ? PLATFORM_NAV_ITEMS : TENANT_NAV_ITEMS;
-    const hydratedBaseNav = baseNav.map(hydrateModuleNavItem);
-    
-    // Only merge non-platform modules if we are NOT a platform admin, 
-    // or if the module is specifically for the platform.
-    const moduleNavItems = (props.modules?.nav ?? [])
-      .map(hydrateModuleNavItem);
-      
-    // If we are platform admin, we only show platform-specific nav items.
-    // The PLATFORM_NAV_ITEMS already contains the core platform stuff.
-    return [...hydratedBaseNav, ...moduleNavItems.filter(m => isPlatformAdmin ? m.id.startsWith('platform') : !m.id.startsWith('platform'))];
-  }, [props.modules?.nav, isPlatformAdmin]);
+  const navItems = useMemo(() => NAV_ITEMS.map(hydrateNavItem), []);
 
   const [activeModule, setActiveModule] = useState(() => resolveActiveModule(url, navItems));
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
 
-  const appName = company?.name || import.meta.env.VITE_APP_NAME || 'Laravel';
+  const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
   const appWords = appName.trim().split(/\s+/).filter(Boolean);
   const appInitials = appWords.length > 1
     ? appWords.slice(0, 2).map((word) => word[0]?.toUpperCase() || '').join('')
@@ -150,18 +126,14 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
       >
         <aside className="w-[4.5rem] h-full border-r border-[#1E222B] bg-[#0B0E14] flex flex-col flex-shrink-0">
           <div className="h-14 flex items-center justify-center border-b border-[#1E222B]">
-            <AppLogo showText={false} logoUrl={company?.logo_url} name={company?.name} />
+            <AppLogo showText={false} name={appName} />
           </div>
           <div className="flex-1 py-4 overflow-y-auto pb-20">
             <SidebarNav activeModule={activeModule} setActiveModule={handleModuleClick} navItems={navItems} />
           </div>
           <div className="h-14 flex items-center justify-center border-t border-[#1E222B]">
             <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-extrabold border border-primary/20 overflow-hidden">
-              {company?.logo_url ? (
-                <img src={company.logo_url} className="h-full w-full object-contain p-1" alt="Logo" />
-              ) : (
-                appInitials
-              )}
+              {appInitials}
             </div>
           </div>
         </aside>
@@ -236,16 +208,12 @@ export default function AppSidebar({ isMobileOpen = false, onCloseMobileMenu = (
             <div className="p-4 border-t border-[#1E222B] bg-[#0D1017]">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground text-[10px] font-black shadow-lg shadow-primary/20 overflow-hidden">
-                  {company?.logo_url ? (
-                    <img src={company.logo_url} className="h-full w-full object-contain p-1" alt="Logo" />
-                  ) : (
-                    appInitials
-                  )}
+                  {appInitials}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-bold text-white truncate">{appName}</p>
                   <p className="text-[10px] text-gray-500 truncate uppercase tracking-widest font-medium">
-                    {isPlatformAdmin ? 'Platform Admin' : 'Worksuite'}
+                    Application
                   </p>
                 </div>
               </div>

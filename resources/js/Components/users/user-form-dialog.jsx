@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Upload, CheckCircle2 } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/Hooks/use-toast';
 
 import { Button } from '@/Components/ui/button';
@@ -14,7 +14,6 @@ import {
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
-import { Checkbox } from '@/Components/ui/checkbox';
 import { Switch } from '@/Components/ui/switch';
 import { Textarea } from '@/Components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
@@ -24,7 +23,6 @@ const INITIAL_FORM = {
   email: '',
   phone: '',
   roleId: '',
-  branchIds: [],
   password: '',
   passwordConfirmation: '',
   bio: '',
@@ -50,7 +48,6 @@ export default function UserFormDialog({
   mode,
   user,
   roles,
-  branches,
   onSaved,
 }) {
   const [form, setForm] = useState(INITIAL_FORM);
@@ -73,8 +70,7 @@ export default function UserFormDialog({
         name: user.name || '',
         email: user.email || '',
         phone: user.phone_number || '',
-        roleId: (user.roles && user.roles[0] ? String(user.roles[0].id) : ''),
-        branchIds: (user.branches || []).map((branch) => Number(branch.id)),
+        roleId: user.role || (user.roles && user.roles[0] ? String(user.roles[0].id) : ''),
         password: '',
         passwordConfirmation: '',
         bio: '',
@@ -111,14 +107,10 @@ export default function UserFormDialog({
       formData.append('email', form.email);
       formData.append('phone_number', form.phone);
       formData.append('status', form.isActive ? 'active' : 'inactive');
-      
+
       if (form.roleId) {
-        formData.append('role_ids[]', Number(form.roleId));
+        formData.append('role', form.roleId);
       }
-      
-      form.branchIds.forEach(id => {
-        formData.append('branch_ids[]', id);
-      });
 
       if (!isEditMode && form.password.trim() !== '') {
         formData.append('password', form.password);
@@ -130,7 +122,6 @@ export default function UserFormDialog({
       }
 
       if (isEditMode && user) {
-        // Use POST with _method spoofing for multipart PATCH
         formData.append('_method', 'PATCH');
         await window.axios.post(`/admin/users/${user.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
@@ -143,8 +134,8 @@ export default function UserFormDialog({
 
       toast({
         title: isEditMode ? 'User updated' : 'User created',
-        description: isEditMode 
-          ? `Changes to ${form.name} have been saved.` 
+        description: isEditMode
+          ? `Changes to ${form.name} have been saved.`
           : `${form.name} has been added to the team.`,
       });
 
@@ -256,9 +247,7 @@ export default function UserFormDialog({
               />
               {fieldErrors.phone_number ? <p className="text-xs text-destructive">{fieldErrors.phone_number[0]}</p> : null}
             </div>
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
               <Select value={form.roleId} onValueChange={(value) => setForm((prev) => ({ ...prev, roleId: value }))}>
@@ -272,49 +261,7 @@ export default function UserFormDialog({
                 </SelectContent>
               </Select>
               {selectedRole ? <p className="text-xs text-muted-foreground">Selected role: {selectedRole.name}</p> : null}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Branches</Label>
-              <div className="max-h-36 overflow-y-auto rounded-md border p-3 space-y-2">
-                {branches.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No active branches available.</p>
-                ) : (
-                  branches.map((branch) => {
-                    const checked = form.branchIds.includes(Number(branch.id));
-
-                    return (
-                      <label key={branch.id} className="flex items-center gap-2 text-sm">
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(isChecked) => {
-                            setForm((previous) => {
-                              if (isChecked) {
-                                if (previous.branchIds.includes(Number(branch.id))) {
-                                  return previous;
-                                }
-
-                                return {
-                                  ...previous,
-                                  branchIds: [...previous.branchIds, Number(branch.id)],
-                                };
-                              }
-
-                              return {
-                                ...previous,
-                                branchIds: previous.branchIds.filter((id) => id !== Number(branch.id)),
-                              };
-                            });
-                          }}
-                        />
-                        <span>{branch.name}</span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">Select at least one branch.</p>
-              {fieldErrors.branch_ids ? <p className="text-xs text-destructive">{fieldErrors.branch_ids[0]}</p> : null}
+              {fieldErrors.role ? <p className="text-xs text-destructive">{fieldErrors.role[0]}</p> : null}
             </div>
           </div>
 

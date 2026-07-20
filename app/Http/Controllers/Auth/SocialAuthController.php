@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Models\Company;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\RedirectResponse;
@@ -51,12 +49,7 @@ class SocialAuthController extends Controller
                     'social_avatar' => $socialUser->getAvatar(),
                 ]);
             } else {
-                // Create new user
-                $company = Company::query()->first();
-                $branch = Branch::query()->where('company_id', $company?->id)->first();
-
-                // Check if this is the first user in the company
-                $isFirstUser = $company ? User::query()->where('company_id', $company->id)->count() === 0 : true;
+                $isFirstUser = User::query()->count() === 0;
 
                 $user = User::create([
                     'name' => $socialUser->getName() ?? $socialUser->getNickname() ?? 'Social User',
@@ -64,17 +57,9 @@ class SocialAuthController extends Controller
                     'social_id' => $socialUser->getId(),
                     'social_provider' => $provider,
                     'social_avatar' => $socialUser->getAvatar(),
-                    'company_id' => $company?->id,
-                    'preferred_branch_id' => $branch?->id,
                     'status' => 'active',
                     'role' => $isFirstUser ? 'Admin' : config('roles.default_role', 'Viewer'),
                 ]);
-
-                if ($branch) {
-                    $user->syncBranches([
-                        $branch->id => ['is_primary' => true],
-                    ]);
-                }
             }
         }
 

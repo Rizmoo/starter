@@ -12,37 +12,25 @@ export function useAppContext() {
 }
 
 export function AppProvider({ children, initialAuth }) {
-  // Try to get from usePage if available, otherwise use initialAuth
   let auth = initialAuth;
-  let sharedCompany = null;
-  let sharedBranchContext = null;
 
   try {
     const page = usePage();
     auth = page.props.auth || initialAuth;
-    sharedCompany = page.props.company ?? null;
-    sharedBranchContext = page.props.branch_context ?? null;
   } catch (e) {
     // usePage not available, use initialAuth
   }
 
   const user = auth?.user || null;
-  const companyName = sharedCompany?.name || 'Company';
-  const companyDetails = sharedCompany || { name: companyName };
-  const branches = sharedBranchContext?.branches || [];
-  const currentBranch = sharedBranchContext?.current_branch || null;
-  const branchScopeMode = sharedBranchContext?.mode || 'single';
+  const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
   return (
     <AppContext.Provider
       value={{
         user,
-        currency: sharedCompany?.settings?.currency || 'USD',
-        companyName,
-        companyDetails,
-        branches,
-        currentBranch,
-        branchScopeMode,
+        currency: 'USD',
+        companyName: appName,
+        companyDetails: { name: appName },
       }}
     >
       {children}

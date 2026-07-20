@@ -41,7 +41,6 @@ export default function UsersIndexPage() {
   const [users, setUsers] = useState([]);
   const [meta, setMeta] = useState(null);
   const [roles, setRoles] = useState([]);
-  const [branches, setBranches] = useState([]);
   const [page, setPage] = useState(1);
   const [pageLength, setPageLength] = useState(15);
   const [search, setSearch] = useState('');
@@ -103,16 +102,10 @@ export default function UsersIndexPage() {
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [rolesResponse, branchesResponse] = await Promise.all([
-          window.axios.get('/admin/roles', { params: { per_page: 100 } }),
-          window.axios.get('/admin/branches', { params: { per_page: 200, status: 'active' } }),
-        ]);
-
+        const rolesResponse = await window.axios.get('/admin/roles', { params: { per_page: 100 } });
         setRoles(rolesResponse.data?.data || []);
-        setBranches(branchesResponse.data?.data || []);
       } catch {
         setRoles([]);
-        setBranches([]);
       }
     };
 
@@ -260,25 +253,6 @@ export default function UsersIndexPage() {
         );
       },
       meta: { title: 'Roles' },
-    },
-    {
-      accessorKey: 'branches',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Branches" />,
-      cell: ({ row }) => {
-        const branches = row.original.branches || [];
-        if (branches.length === 0) return <span className="text-muted-foreground italic text-xs">None</span>;
-        
-        return (
-          <div className="flex flex-wrap gap-1">
-            {branches.map(branch => (
-              <span key={branch.id} className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted border">
-                {branch.name}
-              </span>
-            ))}
-          </div>
-        );
-      },
-      meta: { title: 'Branches' },
     },
     {
       accessorKey: 'last_login_at',
@@ -530,7 +504,6 @@ export default function UsersIndexPage() {
           mode={dialogMode}
           user={selectedUser}
           roles={roles}
-          branches={branches}
           onSaved={loadUsers}
         />
 

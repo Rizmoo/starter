@@ -12,7 +12,6 @@ class AuditLog extends Model
      */
     protected $fillable = [
         'actor_id',
-        'branch_id',
         'action',
         'auditable_type',
         'auditable_id',
@@ -36,10 +35,5 @@ class AuditLog extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actor_id');
-    }
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
     }
 }

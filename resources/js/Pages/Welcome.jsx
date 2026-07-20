@@ -112,7 +112,7 @@ export default function Welcome() {
                 },
                 { 
                   title: 'Team Collaboration', 
-                  desc: 'Contextual commenting, shared task boards, and multi-tenant user permissions.',
+                  desc: 'Contextual commenting, shared task boards, and role-based user permissions.',
                   icon: Users,
                   color: 'bg-purple-500/10 text-purple-500'
                 },

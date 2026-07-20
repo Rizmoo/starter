@@ -43,7 +43,7 @@ export default function GuestLayout({ children, title }) {
               <div className="col-span-2 space-y-6">
                 <AppLogo showText={true} />
                 <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-                  Streamline your business operations with our modern SaaS platform. Built for performance, security, and scale.
+                  Streamline your business operations with a modern application starter. Built for performance, security, and scale.
                 </p>
                 <div className="flex items-center gap-4 pt-2">
                   <a href="#" className="w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all"><Shield className="h-4 w-4" /></a>

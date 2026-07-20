@@ -1,8 +1,8 @@
 import {
-  LayoutDashboard, Users, Settings, Building, Shield, Bell,
+  LayoutDashboard, Users, Settings, Shield, Bell,
 } from 'lucide-react';
 
-export const TENANT_NAV_ITEMS = [
+export const NAV_ITEMS = [
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -40,8 +40,6 @@ export const TENANT_NAV_ITEMS = [
         links: [
           { href: '/settings', label: 'General', icon: 'Settings' },
           { href: '/settings/api-keys', label: 'API Keys', icon: 'Shield' },
-          { href: '/settings/company', label: 'Company', icon: 'Building' },
-          { href: '/settings/branches', label: 'Branches', icon: 'Building' },
           { href: '/notifications', label: 'Notifications', icon: 'Bell' },
         ]
       },
