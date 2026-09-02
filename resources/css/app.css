@@ -117,6 +117,13 @@
     --sidebar-primary: 243.4 75.4% 58.6%;
     --sidebar-ring: 243.4 75.4% 58.6%;
   }
+
+  [data-color-theme="green"] {
+    --primary: 142.1 76.2% 36.3%;
+    --ring: 142.1 76.2% 36.3%;
+    --sidebar-primary: 142.1 70.6% 45.3%;
+    --sidebar-ring: 142.1 70.6% 45.3%;
+  }
 }
 
 @layer base {
