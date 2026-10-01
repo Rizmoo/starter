@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\RedirectResponse;
@@ -49,8 +50,6 @@ class SocialAuthController extends Controller
                     'social_avatar' => $socialUser->getAvatar(),
                 ]);
             } else {
-                $isFirstUser = User::query()->count() === 0;
-
                 $user = User::create([
                     'name' => $socialUser->getName() ?? $socialUser->getNickname() ?? 'Social User',
                     'email' => $socialUser->getEmail(),
@@ -58,7 +57,7 @@ class SocialAuthController extends Controller
                     'social_provider' => $provider,
                     'social_avatar' => $socialUser->getAvatar(),
                     'status' => 'active',
-                    'role' => $isFirstUser ? 'Admin' : config('roles.default_role', 'Viewer'),
+                    'role_id' => Role::firstOrCreateAdmin()->id,
                 ]);
             }
         }

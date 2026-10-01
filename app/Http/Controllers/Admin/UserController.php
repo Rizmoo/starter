@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\UserOnboardingNotification;
+use App\Support\PermissionCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -55,7 +56,7 @@ class UserController extends Controller
                 'password' => $validated['password'] ?? $temporaryPassword,
                 'force_password_change' => true,
                 'status' => $validated['status'] ?? 'active',
-                'role' => $validated['role'] ?? config('roles.default_role', 'Viewer'),
+                'role_id' => $validated['role_id'] ?? $validated['role'] ?? null,
             ]);
 
             if ($request->hasFile('profile_picture')) {
@@ -145,7 +146,11 @@ class UserController extends Controller
         $before = $user->toArray();
 
         $updatedUser = DB::transaction(function () use ($validated, $user, $request): User {
-            $user->fill(Arr::only($validated, ['name', 'email', 'password', 'phone_number', 'role']));
+            $user->fill(Arr::only($validated, ['name', 'email', 'password', 'phone_number']));
+
+            if (array_key_exists('role_id', $validated) || array_key_exists('role', $validated)) {
+                $user->role_id = $validated['role_id'] ?? $validated['role'] ?? null;
+            }
 
             if ($request->hasFile('profile_picture')) {
                 if ($user->profile_picture_path) {
@@ -233,18 +238,18 @@ class UserController extends Controller
     public function syncRoles(Request $request, User $user): JsonResponse
     {
         $validated = $request->validate([
-            'role' => ['required', 'string', Rule::in(array_keys(config('roles.roles', [])))],
+            'role' => ['required', 'integer', Rule::exists('roles', 'id')],
         ]);
 
-        $before = ['role' => $user->role];
-        $user->syncRoles($validated['role']);
+        $before = ['role_id' => $user->role_id];
+        $user->assignRole((int) $validated['role']);
 
         $this->logAudit(
             $request,
             'users.roles_synced',
             $user,
             $before,
-            ['role' => $user->role]
+            ['role_id' => $user->role_id]
         );
 
         return response()->json($user->fresh());
@@ -252,9 +257,29 @@ class UserController extends Controller
 
     public function syncPermissions(Request $request, User $user): JsonResponse
     {
-        return response()->json([
-            'message' => 'Permissions are role-based. Assign a role instead.',
-        ], 422);
+        $validated = $request->validate([
+            'permissions' => ['present', 'array'],
+            'permissions.*' => ['string', Rule::in(PermissionCatalog::keys())],
+        ]);
+
+        $before = ['permissions' => $user->permissions];
+        $permissions = User::normalizePermissions($validated['permissions']);
+
+        if (in_array('*', $permissions, true)) {
+            $permissions = ['*'];
+        }
+
+        $user->forceFill(['permissions' => $permissions])->save();
+
+        $this->logAudit(
+            $request,
+            'users.permissions_synced',
+            $user,
+            $before,
+            ['permissions' => $user->permissions]
+        );
+
+        return response()->json($user->fresh());
     }
 
     public function bulkForcePasswordChange(Request $request): JsonResponse

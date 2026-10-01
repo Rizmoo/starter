@@ -69,17 +69,45 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 
-    Route::prefix('/admin')->name('admin.')->middleware(['role:Admin'])->group(function () {
-        Route::patch('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
-        Route::patch('/users/{user}/suspend', [UserController::class, 'suspend'])->name('users.suspend');
-        Route::put('/users/{user}/roles', [UserController::class, 'syncRoles'])->name('users.sync-roles');
-        Route::put('/users/{user}/permissions', [UserController::class, 'syncPermissions'])->name('users.sync-permissions');
+    Route::prefix('/admin')->name('admin.')->group(function () {
+        Route::middleware('permission:users.view')->group(function () {
+            Route::get('/users/{user}/logs', [UserController::class, 'logs'])->name('users.logs');
+            Route::get('/users/{user}/logs/export', [UserController::class, 'exportLogs'])->name('users.logs.export');
+            Route::get('/users', [UserController::class, 'index'])->name('users.index');
+            Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
+        });
 
-        Route::post('/users/bulk/force-password-change', [UserController::class, 'bulkForcePasswordChange'])->name('users.bulk.force-password-change');
-        Route::get('/users/{user}/logs', [UserController::class, 'logs'])->name('users.logs');
-        Route::get('/users/{user}/logs/export', [UserController::class, 'exportLogs'])->name('users.logs.export');
-        Route::apiResource('users', UserController::class);
-        Route::apiResource('roles', RoleController::class);
-        Route::apiResource('permissions', PermissionController::class);
+        Route::middleware('permission:users.create')->post('/users', [UserController::class, 'store'])->name('users.store');
+
+        Route::middleware('permission:users.update')->group(function () {
+            Route::patch('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
+            Route::patch('/users/{user}/suspend', [UserController::class, 'suspend'])->name('users.suspend');
+            Route::put('/users/{user}/roles', [UserController::class, 'syncRoles'])->name('users.sync-roles');
+            Route::put('/users/{user}/permissions', [UserController::class, 'syncPermissions'])->name('users.sync-permissions');
+            Route::post('/users/bulk/force-password-change', [UserController::class, 'bulkForcePasswordChange'])->name('users.bulk.force-password-change');
+            Route::match(['put', 'patch'], '/users/{user}', [UserController::class, 'update'])->name('users.update');
+        });
+
+        Route::middleware('permission:users.delete')->delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
+        Route::middleware('permission:roles.view')->group(function () {
+            Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+            Route::get('/roles/{role}', [RoleController::class, 'show'])->name('roles.show');
+            Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
+            Route::get('/permissions/{permission}', [PermissionController::class, 'show'])->name('permissions.show');
+        });
+
+        Route::middleware('permission:roles.create')->post('/roles', [RoleController::class, 'store'])->name('roles.store');
+
+        Route::middleware('permission:roles.update')->group(function () {
+            Route::match(['put', 'patch'], '/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+            Route::post('/permissions', [PermissionController::class, 'store'])->name('permissions.store');
+            Route::match(['put', 'patch'], '/permissions/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
+        });
+
+        Route::middleware('permission:roles.delete')->group(function () {
+            Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+            Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
+        });
     });
 });

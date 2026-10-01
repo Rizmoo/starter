@@ -52,10 +52,6 @@ export default function RolesIndexPage() {
   const [roleName, setRoleName] = useState('');
   const [selectedPermissionIds, setSelectedPermissionIds] = useState([]);
 
-  const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
-  const [editingPermission, setEditingPermission] = useState(null);
-  const [permissionName, setPermissionName] = useState('');
-
   const [confirmState, setConfirmState] = useState({
     open: false,
     entity: null,
@@ -157,12 +153,6 @@ export default function RolesIndexPage() {
     }
   };
 
-  const openEditPermissionDialog = (permission) => {
-    setEditingPermission(permission);
-    setPermissionName(permission.name || '');
-    setIsPermissionDialogOpen(true);
-  };
-
   const submitRoleUpdate = async (event) => {
     event.preventDefault();
 
@@ -186,34 +176,6 @@ export default function RolesIndexPage() {
     } catch (requestError) {
       toast({
         title: 'Unable to update role',
-        description: requestError?.response?.data?.message || 'Please check inputs and try again.',
-      });
-    }
-  };
-
-  const submitPermissionUpdate = async (event) => {
-    event.preventDefault();
-
-    if (!editingPermission) {
-      return;
-    }
-
-    try {
-      await window.axios.patch(`/admin/permissions/${editingPermission.id}`, {
-        name: permissionName,
-      });
-
-      toast({
-        title: 'Permission updated',
-        description: 'Permission changes were saved successfully.',
-      });
-
-      setIsPermissionDialogOpen(false);
-      await loadPermissions();
-      await loadRoles();
-    } catch (requestError) {
-      toast({
-        title: 'Unable to update permission',
         description: requestError?.response?.data?.message || 'Please check inputs and try again.',
       });
     }
@@ -308,6 +270,11 @@ export default function RolesIndexPage() {
       meta: { title: 'Permission' },
     },
     {
+      accessorKey: 'label',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Label" />,
+      meta: { title: 'Label' },
+    },
+    {
       accessorKey: 'roles_count',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Roles" />,
       meta: { title: 'Roles' },
@@ -317,30 +284,9 @@ export default function RolesIndexPage() {
       header: ({ column }) => <DataTableColumnHeader column={column} title="Users" />,
       meta: { title: 'Users' },
     },
-    {
-      id: 'actions',
-      enableHiding: false,
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Open permission actions</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => openEditPermissionDialog(row.original)}>Edit</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => triggerDelete('permissions', row.original.id)} className="text-destructive">
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
   ], []);
 
   const totalRoles = useMemo(() => roles.length, [roles]);
-  const totalPermissions = useMemo(() => permissions.length, [permissions]);
 
   return (
     <DashboardLayout title="Roles & Permissions">
@@ -420,7 +366,7 @@ export default function RolesIndexPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Permissions</CardTitle>
-                <CardDescription>Total loaded: {totalPermissions}</CardDescription>
+                <CardDescription>Defined in config/permissions.php. Assign them to roles.</CardDescription>
               </CardHeader>
               <CardContent>
                 <DataTable
@@ -494,7 +440,7 @@ export default function RolesIndexPage() {
                             });
                           }}
                         />
-                        <span>{permission.name}</span>
+        <span>{permission.label || permission.name}</span>
                       </label>
                     );
                   })}
@@ -509,35 +455,11 @@ export default function RolesIndexPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isPermissionDialogOpen} onOpenChange={setIsPermissionDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Edit Permission</DialogTitle>
-              <DialogDescription>Update permission name.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={submitPermissionUpdate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="permission-name">Permission Name</Label>
-                <Input
-                  id="permission-name"
-                  value={permissionName}
-                  onChange={(event) => setPermissionName(event.target.value)}
-                  required
-                />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsPermissionDialogOpen(false)}>Cancel</Button>
-                <Button type="submit">Save Changes</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
         <ConfirmDialog
           open={confirmState.open}
           onOpenChange={(open) => setConfirmState((previous) => ({ ...previous, open }))}
           onConfirm={confirmDelete}
-          title={`Delete ${confirmState.entity === 'roles' ? 'Role' : 'Permission'}`}
+          title="Delete Role"
           description="This action cannot be undone."
           confirmText="Delete"
           variant="destructive"

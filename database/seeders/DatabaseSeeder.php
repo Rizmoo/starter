@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Notifications\GeneralNotification;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -16,6 +17,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $adminRole = Role::firstOrCreateAdmin();
+
         $user = User::firstOrCreate(
             ['email' => 'test@example.com'],
             [
@@ -23,18 +26,17 @@ class DatabaseSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'force_password_change' => false,
                 'status' => 'active',
-                'role' => 'Admin',
+                'role_id' => $adminRole->id,
             ]
         );
 
-        if ($user->force_password_change || ! $user->role) {
+        if ($user->force_password_change || $user->role_id === null) {
             $user->forceFill([
                 'force_password_change' => false,
-                'role' => 'Admin',
+                'role_id' => $adminRole->id,
             ])->save();
         }
 
-        // Seed sample notifications
         $samples = [
             ['title' => 'Welcome!', 'message' => 'Your account has been set up successfully. Explore the dashboard to get started.', 'type' => 'success'],
             ['title' => 'New user registered', 'message' => 'John Doe just signed up. Review their account in the users section.', 'type' => 'info'],
@@ -53,7 +55,6 @@ class DatabaseSeeder extends Seeder
             ));
         }
 
-        // Mark the last two as already read
         $user->notifications()->latest()->skip(0)->take(2)->get()->each->markAsRead();
     }
 }

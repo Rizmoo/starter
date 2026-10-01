@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -18,8 +19,6 @@ class UserFactory extends Factory
     protected static ?string $password;
 
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
@@ -30,18 +29,47 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'role' => config('roles.default_role', 'Viewer'),
+            'role_id' => null,
+            'permissions' => null,
             'status' => 'active',
             'force_password_change' => false,
         ];
     }
 
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role_id' => Role::firstOrCreateAdmin()->id,
+        ]);
+    }
+
     /**
-     * Indicate that the model's email address should be unverified.
+     * @param  list<string>  $permissions
      */
+    public function withPermissions(array $permissions): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role_id' => Role::factory()->create([
+                'permissions' => $permissions,
+            ])->id,
+        ]);
+    }
+
+    /**
+     * Extra grants stored on the user, merged with the role.
+     *
+     * @param  list<string>  $permissions
+     */
+    public function extraPermissions(array $permissions): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'permissions' => $permissions,
+        ]);
+    }
+
     public function unverified(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'email_verified_at' => null,
         ]);
     }

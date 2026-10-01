@@ -17,10 +17,9 @@ class UserOnboardingFlowTest extends TestCase
     {
         Notification::fake();
 
-        $admin = User::factory()->create([
+        $admin = User::factory()->admin()->create([
             'status' => 'active',
             'force_password_change' => false,
-            'role' => 'Admin',
         ]);
 
         $response = $this->actingAs($admin)->postJson('/admin/users', [

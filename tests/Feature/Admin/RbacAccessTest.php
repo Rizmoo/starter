@@ -10,33 +10,41 @@ class RbacAccessTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Ensure admins can reach protected user-management endpoints.
-     */
     public function test_admin_user_can_access_admin_users_index(): void
     {
-        $admin = User::factory()->create([
+        $admin = User::factory()->admin()->create([
             'status' => 'active',
-            'role' => 'Admin',
         ]);
 
-        $response = $this->actingAs($admin)->getJson('/admin/users');
-
-        $response->assertOk();
+        $this->actingAs($admin)
+            ->getJson('/admin/users')
+            ->assertOk();
     }
 
-    /**
-     * Ensure non-admin users are blocked from protected endpoints.
-     */
-    public function test_non_admin_user_cannot_access_admin_users_index(): void
+    public function test_user_without_users_view_cannot_access_admin_users_index(): void
     {
-        $user = User::factory()->create([
+        $user = User::factory()->withPermissions(['notifications.view'])->create([
             'status' => 'active',
-            'role' => 'Viewer',
         ]);
 
-        $response = $this->actingAs($user)->getJson('/admin/users');
+        $this->assertFalse($user->hasFullAccess());
+        $this->assertFalse($user->hasPermissionTo('users.view'));
 
-        $response->assertForbidden();
+        $this->actingAs($user)
+            ->getJson('/admin/users')
+            ->assertForbidden();
+    }
+
+    public function test_users_manage_permission_grants_users_view(): void
+    {
+        $user = User::factory()->withPermissions(['users.manage'])->create([
+            'status' => 'active',
+        ]);
+
+        $this->assertTrue($user->hasPermissionTo('users.view'));
+
+        $this->actingAs($user)
+            ->getJson('/admin/users')
+            ->assertOk();
     }
 }

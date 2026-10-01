@@ -8,28 +8,27 @@ import { Separator } from '@/Components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { DataTable } from '@/Components/ui/data-table';
 import { DataTableColumnHeader } from '@/Components/ui/data-table-column-header';
-import { 
-  User, 
-  Mail, 
-  Shield, 
-  Clock, 
-  AlertTriangle, 
-  UserCheck, 
-  UserX, 
-  Edit, 
-  Trash2, 
+import {
+  Mail,
+  Shield,
+  Clock,
+  AlertTriangle,
+  UserCheck,
+  UserX,
+  Edit,
+  Trash2,
   ArrowLeft,
   ChevronRight,
   Activity,
   Calendar,
-  Eye,
   Info,
   History,
   Search,
-  DownloadCloud,
   Phone,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  MoreHorizontal,
+  KeyRound,
 } from 'lucide-react';
 import { Label } from '@/Components/ui/label';
 import {
@@ -39,23 +38,80 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/Components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
 import { useToast } from '@/Hooks/use-toast';
 import { ConfirmDialog } from '@/Components/ui/confirm-dialog';
 import UserFormDialog from '@/Components/users/user-form-dialog';
 import { Link, router } from '@inertiajs/react';
 
+function formatDate(value) {
+  if (!value) {
+    return '—';
+  }
+
+  return new Date(value).toLocaleDateString();
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return 'Never';
+  }
+
+  return new Date(value).toLocaleString();
+}
+
 function StatusBadge({ status }) {
   const normalized = (status || '').toLowerCase();
 
   if (normalized === 'active') {
-    return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Active</Badge>;
+    return <Badge className="w-fit shrink-0">Active</Badge>;
   }
 
   if (normalized === 'suspended') {
-    return <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20">Suspended</Badge>;
+    return <Badge variant="destructive" className="w-fit shrink-0">Suspended</Badge>;
   }
 
-  return <Badge variant="secondary">Inactive</Badge>;
+  return <Badge variant="secondary" className="w-fit shrink-0">Inactive</Badge>;
+}
+
+function DetailItem({ label, children }) {
+  return (
+    <div className="min-w-0 space-y-1">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-sm font-medium break-words">{children}</div>
+    </div>
+  );
+}
+
+function permissionGroups(permissions) {
+  const keys = (permissions || []).map((permission) => (
+    typeof permission === 'string' ? permission : permission.name
+  )).filter(Boolean);
+
+  if (keys.includes('*')) {
+    return [{ label: 'Full access', items: ['*'] }];
+  }
+
+  const groups = new Map();
+
+  keys.forEach((key) => {
+    const [module] = key.split('.');
+    const label = module || 'other';
+
+    if (!groups.has(label)) {
+      groups.set(label, []);
+    }
+
+    groups.get(label).push(key);
+  });
+
+  return Array.from(groups, ([label, items]) => ({ label, items }));
 }
 
 export default function UserShowPage({ id }) {
@@ -64,8 +120,7 @@ export default function UserShowPage({ id }) {
   const [roles, setRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  
-  // Activity Log State
+
   const [logs, setLogs] = useState([]);
   const [logMeta, setLogMeta] = useState(null);
   const [logPage, setLogPage] = useState(1);
@@ -78,7 +133,7 @@ export default function UserShowPage({ id }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [confirmState, setConfirmState] = useState({
     open: false,
-    type: 'delete', // delete, suspend, activate
+    type: 'delete',
     loading: false,
   });
 
@@ -106,12 +161,12 @@ export default function UserShowPage({ id }) {
       });
       setLogs(response.data?.data || []);
       setLogMeta(response.data || null);
-    } catch (error) {
+    } catch (loadError) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to load activity logs.' });
     } finally {
       setIsLogsLoading(false);
     }
-  }, [id, logPage, logPageLength, logSearch]);
+  }, [id, logPage, logPageLength, logSearch, toast]);
 
   useEffect(() => {
     loadUser();
@@ -143,7 +198,7 @@ export default function UserShowPage({ id }) {
 
   const executeAction = async () => {
     const { type } = confirmState;
-    setConfirmState(prev => ({ ...prev, loading: true }));
+    setConfirmState((prev) => ({ ...prev, loading: true }));
     try {
       if (type === 'delete') {
         await window.axios.delete(`/admin/users/${id}`);
@@ -158,14 +213,14 @@ export default function UserShowPage({ id }) {
         toast({ title: 'User activated', description: 'Access has been restored.' });
         loadUser();
       }
-    } catch (e) {
+    } catch (actionError) {
       toast({
         variant: 'destructive',
         title: 'Action failed',
-        description: e.response?.data?.message || 'Something went wrong.',
+        description: actionError.response?.data?.message || 'Something went wrong.',
       });
     } finally {
-      setConfirmState(prev => ({ ...prev, open: false, loading: false }));
+      setConfirmState((prev) => ({ ...prev, open: false, loading: false }));
     }
   };
 
@@ -174,7 +229,7 @@ export default function UserShowPage({ id }) {
       accessorKey: 'created_at',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Timestamp" />,
       cell: ({ row }) => (
-        <span className="text-xs font-medium">{new Date(row.original.created_at).toLocaleString()}</span>
+        <span className="whitespace-nowrap text-xs font-medium">{formatDateTime(row.original.created_at)}</span>
       ),
     },
     {
@@ -184,9 +239,9 @@ export default function UserShowPage({ id }) {
         const parts = row.original.action.split('.');
         const label = parts.pop().replace(/_/g, ' ');
         return (
-          <div className="flex flex-col">
-            <span className="text-sm font-bold capitalize">{label}</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-tighter opacity-70">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm font-semibold capitalize">{label}</span>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
               {parts.join('.')}
             </span>
           </div>
@@ -201,7 +256,7 @@ export default function UserShowPage({ id }) {
         const isSelf = actor?.id === user?.id;
         return (
           <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${isSelf ? 'bg-primary' : 'bg-amber-500'}`}></div>
+            <div className={`h-2 w-2 shrink-0 rounded-full ${isSelf ? 'bg-primary' : 'bg-amber-500'}`}></div>
             <span className="text-xs font-semibold">{isSelf ? 'Self' : (actor?.name || 'System')}</span>
           </div>
         );
@@ -210,10 +265,10 @@ export default function UserShowPage({ id }) {
     {
       id: 'actions',
       cell: ({ row }) => (
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-8 w-8" 
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
           onClick={() => {
             setSelectedLog(row.original);
             setIsLogDialogOpen(true);
@@ -229,7 +284,7 @@ export default function UserShowPage({ id }) {
     return (
       <DashboardLayout title="Loading User...">
         <div className="flex h-[400px] items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
         </div>
       </DashboardLayout>
     );
@@ -238,7 +293,7 @@ export default function UserShowPage({ id }) {
   if (error || !user) {
     return (
       <DashboardLayout title="Error">
-        <div className="flex h-[400px] flex-col items-center justify-center gap-4">
+        <div className="flex h-[400px] flex-col items-center justify-center gap-4 px-4 text-center">
           <AlertTriangle className="h-12 w-12 text-destructive" />
           <p className="text-xl font-semibold">{error || 'User not found'}</p>
           <Button onClick={() => router.visit(route('users.page'))}>
@@ -256,209 +311,238 @@ export default function UserShowPage({ id }) {
     .slice(0, 2)
     .toUpperCase();
 
+  const roleName = user.roles?.[0]?.name || user.role?.name || 'No role';
+  const groupedPermissions = permissionGroups(user.all_permissions);
+  const isActive = user.status === 'active';
+
   return (
     <DashboardLayout title={`User: ${user.name}`}>
-      <div className="space-y-8 max-w-7xl mx-auto">
-        {/* Breadcrumbs & Navigation */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
-            <Link href={route('users.page')} className="hover:text-primary transition-colors">Users</Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-foreground">Profile</span>
+      <div className="mx-auto w-full max-w-6xl space-y-5 sm:space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Link href={route('users.page')} className="hover:text-primary">Users</Link>
+              <ChevronRight className="h-4 w-4 shrink-0" />
+              <span className="truncate text-foreground">Profile</span>
+            </div>
+            <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{user.name}</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-              <Edit className="h-4 w-4 mr-2" /> Edit
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setDialogOpen(true)}>
+              <Edit className="mr-2 h-4 w-4" /> Edit
             </Button>
-            {user.status === 'active' ? (
-              <Button variant="outline" size="sm" className="text-amber-500 hover:text-amber-600 hover:bg-amber-50" onClick={() => handleAction('suspend')}>
-                <UserX className="h-4 w-4 mr-2" /> Suspend
+
+            <div className="hidden items-center gap-2 sm:flex">
+              {isActive ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40"
+                  onClick={() => handleAction('suspend')}
+                >
+                  <UserX className="mr-2 h-4 w-4" /> Suspend
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40"
+                  onClick={() => handleAction('activate')}
+                >
+                  <UserCheck className="mr-2 h-4 w-4" /> Activate
+                </Button>
+              )}
+              <Button variant="destructive" size="sm" onClick={() => handleAction('delete')}>
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
               </Button>
-            ) : (
-              <Button variant="outline" size="sm" className="text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => handleAction('activate')}>
-                <UserCheck className="h-4 w-4 mr-2" /> Activate
-              </Button>
-            )}
-            <Button variant="destructive" size="sm" onClick={() => handleAction('delete')}>
-              <Trash2 className="h-4 w-4 mr-2" /> Delete
-            </Button>
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9 sm:hidden">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">More actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {isActive ? (
+                  <DropdownMenuItem onClick={() => handleAction('suspend')}>
+                    <UserX className="mr-2 h-4 w-4" /> Suspend
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => handleAction('activate')}>
+                    <UserCheck className="mr-2 h-4 w-4" /> Activate
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive" onClick={() => handleAction('delete')}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
-        {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border p-8 shadow-sm">
-          <div className="flex flex-col md:flex-row gap-8 items-center md:items-start relative z-10">
-            <Avatar className="h-32 w-32 border-4 border-background shadow-xl ring-1 ring-primary/10">
-              <AvatarImage src={user.profile_picture_url || user.social_avatar} alt={user.name} />
-              <AvatarFallback className="bg-primary/10 text-primary text-4xl font-black">{initials}</AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1 text-center md:text-left space-y-4">
-              <div>
-                <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-extrabold tracking-tight text-foreground">{user.name}</h1>
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <Avatar className="h-14 w-14 shrink-0 sm:h-16 sm:w-16">
+                <AvatarImage src={user.profile_picture_url || user.social_avatar} alt={user.name} />
+                <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary sm:text-xl">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={user.status} />
+                  <Badge variant="outline" className="w-fit shrink-0">
+                    {roleName}
+                  </Badge>
                 </div>
-                <div className="flex flex-wrap justify-center md:justify-start gap-4 text-muted-foreground italic font-medium">
-                  <div className="flex items-center gap-1.5"><Mail className="h-4 w-4" /> {user.email}</div>
-                  {user.phone_number && (
-                    <div className="flex items-center gap-1.5">
-                      <Phone className="h-4 w-4" /> {user.phone_number}
+
+                <div className="flex flex-col gap-1.5 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{user.email}</span>
+                  </div>
+                  {user.phone_number ? (
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{user.phone_number}</span>
                       {user.phone_verified_at ? (
-                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
                       ) : (
-                        <AlertCircle className="h-3 w-3 text-amber-500" />
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                       )}
                     </div>
-                  )}
-                  {user.last_login_at && (
-                    <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> Last seen {new Date(user.last_login_at).toLocaleString()}</div>
-                  )}
-                  <div className="flex items-center gap-1.5"><Calendar className="h-4 w-4" /> Joined {new Date(user.created_at).toLocaleDateString()}</div>
+                  ) : null}
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span>Last seen {formatDateTime(user.last_login_at)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 shrink-0" />
+                    <span>Joined {formatDate(user.created_at)}</span>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex flex-wrap justify-center md:justify-start gap-2">
-                {user.roles && user.roles.map(role => (
-                  <Badge key={role.id} variant="outline" className="bg-background/80 backdrop-blur-sm border-primary/20 text-primary px-3 py-1 text-xs font-bold uppercase tracking-wider">
-                    {role.name}
-                  </Badge>
-                ))}
-              </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="bg-background/50 backdrop-blur-sm border px-6 py-8 rounded-2xl flex flex-col justify-center items-center min-w-[180px] shadow-sm">
-               <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Account Access</div>
-               <div className="text-2xl font-black text-primary">Active</div>
-               <div className="mt-4 flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase">
-                 <Shield className="h-3 w-3" /> Secure Connection
-               </div>
-            </div>
-          </div>
-          
-          <div className="absolute top-0 right-0 -mr-12 -mt-12 opacity-[0.03] rotate-12 pointer-events-none">
-             <User size={300} />
-          </div>
-        </div>
-
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-background/50 border h-12 p-1 gap-2 rounded-xl">
-            <TabsTrigger value="overview" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList className="grid h-auto w-full grid-cols-2 sm:inline-flex sm:w-auto">
+            <TabsTrigger value="overview" className="gap-2">
               <Info className="h-4 w-4" /> Overview
             </TabsTrigger>
-            <TabsTrigger value="activity" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
-              <History className="h-4 w-4" /> Activity Log
+            <TabsTrigger value="activity" className="gap-2">
+              <History className="h-4 w-4" /> Activity
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-8">
-                <Card className="border-none shadow-md overflow-hidden bg-card/50 backdrop-blur-sm ring-1 ring-border">
-                  <CardHeader className="border-b bg-muted/30 pb-4">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-primary" />
-                      <CardTitle>Account Details</CardTitle>
-                    </div>
-                    <CardDescription>Core profile and access information.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</div>
-                        <div className="text-sm font-semibold">{user.email}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Role</div>
-                        <div className="text-sm font-semibold">{user.role || user.roles?.[0]?.name || '—'}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</div>
-                        <div className="text-sm font-semibold capitalize">{user.status || '—'}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</div>
-                        <div className="text-sm font-semibold">{user.phone_number || '—'}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+          <TabsContent value="overview" className="mt-0">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Account</CardTitle>
+                  <CardDescription>Profile, role, and contact details.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <DetailItem label="Email">{user.email}</DetailItem>
+                    <DetailItem label="Phone">{user.phone_number || '—'}</DetailItem>
+                    <DetailItem label="Role">{roleName}</DetailItem>
+                    <DetailItem label="Status">
+                      <span className="capitalize">{user.status || '—'}</span>
+                    </DetailItem>
+                    <DetailItem label="Joined">{formatDate(user.created_at)}</DetailItem>
+                    <DetailItem label="Last login">{formatDateTime(user.last_login_at)}</DetailItem>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card className="border-none shadow-md bg-card/50 backdrop-blur-sm ring-1 ring-border">
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-primary" />
-                      <CardTitle>Permissions & Access</CardTitle>
-                    </div>
-                    <CardDescription>Direct permissions assigned via security policies.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {user.permissions && user.permissions.map(perm => (
-                        <Badge key={perm.id} variant="secondary" className="px-3 py-1.5 font-medium border-primary/5 text-xs">
-                          {perm.name}
-                        </Badge>
-                      ))}
-                      {(!user.permissions || user.permissions.length === 0) && (
-                        <div className="w-full text-center py-6 text-muted-foreground/60 italic text-sm">
-                           No direct permissions assigned. Access granted via roles only.
+              <Card>
+                <CardHeader>
+                  <CardTitle>Security</CardTitle>
+                  <CardDescription>Authentication and account controls.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm">Social sign-in</span>
+                    <Badge variant={user.social_provider ? 'default' : 'outline'} className="shrink-0 uppercase">
+                      {user.social_provider || 'Off'}
+                    </Badge>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 text-sm">
+                      <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+                      Password change
+                    </span>
+                    <Badge variant={user.force_password_change ? 'destructive' : 'outline'} className="shrink-0">
+                      {user.force_password_change ? 'Required' : 'Normal'}
+                    </Badge>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 text-sm">
+                      <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                      Two-factor
+                    </span>
+                    <Badge variant={user.two_factor_confirmed_at ? 'default' : 'outline'} className="shrink-0">
+                      {user.two_factor_confirmed_at ? 'On' : 'Off'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="md:col-span-3">
+                <CardHeader>
+                  <CardTitle>Permissions</CardTitle>
+                  <CardDescription>Merged role and extra user-level grants.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {groupedPermissions.length === 0 ? (
+                    <p className="py-4 text-center text-sm italic text-muted-foreground">
+                      No permissions assigned.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {groupedPermissions.map((group) => (
+                        <div key={group.label} className="min-w-0 space-y-2">
+                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {group.label}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {group.items.map((name) => (
+                              <Badge key={name} variant="secondary" className="max-w-full truncate font-normal">
+                                {name === '*' ? 'Full system access' : name}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      )}
+                      ))}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="space-y-8">
-                <Card className="border-none shadow-md bg-card/50 backdrop-blur-sm ring-1 ring-border overflow-hidden">
-                  <CardHeader className="bg-primary/5 border-b pb-4">
-                      <div className="flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-primary" />
-                        <CardTitle>System Information</CardTitle>
-                      </div>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-6">
-                    <div className="space-y-1">
-                      <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Authentication</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Social Sign-in</span>
-                        <Badge variant={user.social_provider ? "default" : "outline"} className="text-[10px]">
-                            {user.social_provider ? user.social_provider.toUpperCase() : 'DISABLED'}
-                        </Badge>
-                      </div>
-                    </div>
-                    <Separator />
-                    <div className="space-y-1">
-                      <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Security Status</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Forced Pass Change</span>
-                        <Badge variant={user.force_password_change ? "destructive" : "outline"} className="text-[10px]">
-                            {user.force_password_change ? 'REQUIRED' : 'NORMAL'}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="activity">
-            <Card className="border-none shadow-md bg-card/50 backdrop-blur-sm ring-1 ring-border overflow-hidden">
-              <CardHeader className="border-b">
-                 <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle>Detailed Audit History</CardTitle>
-                        <CardDescription>Comprehensive log of all administrative and security events.</CardDescription>
-                    </div>
-                 </div>
+          <TabsContent value="activity" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity log</CardTitle>
+                <CardDescription>Administrative and security events for this user.</CardDescription>
               </CardHeader>
-              <CardContent className="px-6 pb-6">
+              <CardContent className="overflow-x-auto">
                 <DataTable
                   columns={logColumns}
                   data={logs}
                   tableName="user_logs"
-                  searchKey="action" // Searching actions specifically
+                  searchKey="action"
                   searchPlaceholder="Search events..."
                   searchValue={logSearch}
                   onSearch={(value) => {
@@ -473,7 +557,7 @@ export default function UserShowPage({ id }) {
                     setLogPage(1);
                   }}
                   onPageChange={(value) => setLogPage(value)}
-                  onExportCsv={() => window.location.href = route('admin.users.logs.export', user.id)}
+                  onExportCsv={() => { window.location.href = route('admin.users.logs.export', user.id); }}
                   companyDetails={{ name: 'BizLav' }}
                 />
               </CardContent>
@@ -481,89 +565,83 @@ export default function UserShowPage({ id }) {
           </TabsContent>
         </Tabs>
 
-        {/* Log Details Dialog */}
         <Dialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                 <Activity className="h-5 w-5 text-primary" />
-                 Event Details
+                <Activity className="h-5 w-5 text-primary" />
+                Event details
               </DialogTitle>
               <DialogDescription>
-                Detailed data payload and context for this audit record.
+                Payload and context for this audit record.
               </DialogDescription>
             </DialogHeader>
 
             {selectedLog && (
-              <div className="space-y-6 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl border bg-muted/30">
-                        <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Event Type</div>
-                        <div className="text-lg font-black text-foreground capitalize">
-                          {selectedLog.action.split('.').pop().replace(/_/g, ' ')}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground font-medium opacity-70">{selectedLog.action}</div>
+              <div className="space-y-6 py-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Event</div>
+                    <div className="text-base font-semibold capitalize">
+                      {selectedLog.action.split('.').pop().replace(/_/g, ' ')}
                     </div>
-                    <div className="p-4 rounded-xl border bg-muted/30">
-                        <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Timestamp</div>
-                        <div className="text-lg font-black text-foreground">
-                            {new Date(selectedLog.created_at).toLocaleString()}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground font-medium opacity-70">UTC Performance Time</div>
+                    <div className="mt-1 break-all text-xs text-muted-foreground">{selectedLog.action}</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Timestamp</div>
+                    <div className="text-base font-semibold">
+                      {formatDateTime(selectedLog.created_at)}
                     </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <Label className="text-[10px] font-black text-muted-foreground uppercase">Actor</Label>
-                        <div className="flex items-center gap-2 text-sm font-semibold">
-                            {selectedLog.actor?.name || 'System Auto-Task'}
-                        </div>
-                    </div>
-                    <div className="space-y-1">
-                        <Label className="text-[10px] font-black text-muted-foreground uppercase">Network IP</Label>
-                        <div className="flex items-center gap-2 text-sm font-mono tracking-tighter">
-                            {selectedLog.ip_address || 'Internal Pipe'}
-                        </div>
-                    </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase text-muted-foreground">Actor</Label>
+                    <div className="text-sm font-medium">{selectedLog.actor?.name || 'System'}</div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs uppercase text-muted-foreground">IP address</Label>
+                    <div className="font-mono text-sm tracking-tight">{selectedLog.ip_address || '—'}</div>
+                  </div>
                 </div>
 
                 <Separator />
 
-                <div className="space-y-4">
-                    <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                        <Search className="h-3 w-3" /> State Change Analysis
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <Search className="h-3 w-3" /> State change
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <div className="inline-block rounded bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400">Before</div>
+                      <div className="min-h-[100px] overflow-x-auto rounded-lg border bg-card p-3 font-mono text-[11px]">
+                        {selectedLog.before ? (
+                          <pre>{JSON.stringify(selectedLog.before, null, 2)}</pre>
+                        ) : (
+                          <span className="italic text-muted-foreground">No prior record</span>
+                        )}
+                      </div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <div className="text-xs font-bold px-2 py-1 bg-amber-500/10 text-amber-600 rounded inline-block">Before State</div>
-                            <div className="p-4 rounded-xl border bg-card text-[11px] font-mono overflow-x-auto min-h-[100px]">
-                                {selectedLog.before ? (
-                                    <pre>{JSON.stringify(selectedLog.before, null, 2)}</pre>
-                                ) : (
-                                    <span className="text-muted-foreground italic">No prior record (Initial State)</span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="text-xs font-bold px-2 py-1 bg-emerald-500/10 text-emerald-600 rounded inline-block">After State</div>
-                            <div className="p-4 rounded-xl border bg-card text-[11px] font-mono overflow-x-auto min-h-[100px]">
-                                {selectedLog.after ? (
-                                    <pre>{JSON.stringify(selectedLog.after, null, 2)}</pre>
-                                ) : (
-                                    <span className="text-muted-foreground italic">Resource deleted / No changes</span>
-                                )}
-                            </div>
-                        </div>
+                    <div className="space-y-2">
+                      <div className="inline-block rounded bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">After</div>
+                      <div className="min-h-[100px] overflow-x-auto rounded-lg border bg-card p-3 font-mono text-[11px]">
+                        {selectedLog.after ? (
+                          <pre>{JSON.stringify(selectedLog.after, null, 2)}</pre>
+                        ) : (
+                          <span className="italic text-muted-foreground">No changes</span>
+                        )}
+                      </div>
                     </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-black text-muted-foreground uppercase">User Agent</Label>
-                    <div className="p-3 bg-muted/50 rounded-lg text-[10px] font-medium leading-relaxed italic border">
-                        {selectedLog.user_agent}
-                    </div>
+                  <Label className="text-xs uppercase text-muted-foreground">User agent</Label>
+                  <div className="break-words rounded-lg border bg-muted/50 p-3 text-xs leading-relaxed">
+                    {selectedLog.user_agent || '—'}
+                  </div>
                 </div>
               </div>
             )}
@@ -581,24 +659,24 @@ export default function UserShowPage({ id }) {
 
         <ConfirmDialog
           open={confirmState.open}
-          onOpenChange={(open) => setConfirmState(prev => ({ ...prev, open }))}
+          onOpenChange={(open) => setConfirmState((prev) => ({ ...prev, open }))}
           onConfirm={executeAction}
           loading={confirmState.loading}
           title={
-            confirmState.type === 'delete' ? 'Delete User' :
-            confirmState.type === 'suspend' ? 'Suspend Access' : 'Activate User'
+            confirmState.type === 'delete' ? 'Delete User'
+              : confirmState.type === 'suspend' ? 'Suspend Access' : 'Activate User'
           }
           description={
-            confirmState.type === 'delete' 
+            confirmState.type === 'delete'
               ? `Are you sure you want to delete ${user.name}? This will remove all their access immediately and cannot be undone.`
               : confirmState.type === 'suspend'
-              ? `Revoke system access for ${user.name}? They will be unable to log in until reactivated.`
-              : `Restore system access for ${user.name}?`
+                ? `Revoke system access for ${user.name}? They will be unable to log in until reactivated.`
+                : `Restore system access for ${user.name}?`
           }
           variant={confirmState.type === 'activate' ? 'default' : 'destructive'}
           confirmText={
-            confirmState.type === 'delete' ? 'Delete User' :
-            confirmState.type === 'suspend' ? 'Suspend Access' : 'Activate Access'
+            confirmState.type === 'delete' ? 'Delete User'
+              : confirmState.type === 'suspend' ? 'Suspend Access' : 'Activate Access'
           }
         />
       </div>

@@ -7,17 +7,12 @@ use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, array<int, mixed>|string>
      */
     public function rules(): array
@@ -29,7 +24,8 @@ class StoreUserRequest extends FormRequest
             'profile_picture' => ['nullable', 'image', 'max:5000'],
             'password' => ['nullable', 'string', 'confirmed', 'min:8'],
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive', 'suspended'])],
-            'role' => ['sometimes', 'string', Rule::in(array_keys(config('roles.roles', [])))],
+            'role' => ['sometimes', 'nullable', 'integer', Rule::exists('roles', 'id')],
+            'role_id' => ['sometimes', 'nullable', 'integer', Rule::exists('roles', 'id')],
         ];
     }
 }

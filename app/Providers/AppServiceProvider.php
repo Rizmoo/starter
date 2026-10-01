@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::before(function (User $user, string $ability): ?bool {
-            return $user->hasRole('Admin') ? true : null;
+            return $user->hasWildcardPermission() ? true : null;
         });
 
         Event::listen(Login::class, function (Login $event) {

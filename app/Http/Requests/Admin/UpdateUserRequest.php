@@ -9,17 +9,12 @@ use Illuminate\Validation\Rule;
 
 class UpdateUserRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -35,7 +30,8 @@ class UpdateUserRequest extends FormRequest
             'password' => ['nullable', 'string', 'confirmed', 'min:8'],
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive', 'suspended'])],
             'suspended_reason' => ['nullable', 'string', 'max:2000'],
-            'role' => ['sometimes', 'string', Rule::in(array_keys(config('roles.roles', [])))],
+            'role' => ['sometimes', 'nullable', 'integer', Rule::exists('roles', 'id')],
+            'role_id' => ['sometimes', 'nullable', 'integer', Rule::exists('roles', 'id')],
         ];
     }
 }

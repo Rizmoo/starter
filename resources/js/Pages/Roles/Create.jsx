@@ -36,11 +36,15 @@ function toTitleCase(value) {
 }
 
 function getPermissionParts(permissionName) {
-  const [resource, action = 'manage'] = permissionName.split('.');
+  const parts = permissionName.split('.');
+  const action = parts.pop() || 'manage';
+  const module = parts[0] || permissionName;
+  const resource = parts.join('.') || module;
+
   return {
     resource,
     action,
-    module: resource,
+    module,
   };
 }
 
@@ -184,6 +188,7 @@ export default function CreateRolePage() {
 
       await window.axios.post('/admin/roles', {
         name,
+        description,
         permission_ids: selectedPermissionIds,
       });
 

@@ -70,7 +70,7 @@ export default function UserFormDialog({
         name: user.name || '',
         email: user.email || '',
         phone: user.phone_number || '',
-        roleId: user.role || (user.roles && user.roles[0] ? String(user.roles[0].id) : ''),
+        roleId: user.role_id ? String(user.role_id) : (user.roles && user.roles[0] ? String(user.roles[0].id) : ''),
         password: '',
         passwordConfirmation: '',
         bio: '',
